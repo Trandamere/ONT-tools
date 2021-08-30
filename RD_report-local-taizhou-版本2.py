@@ -45,7 +45,6 @@ parser.add_argument('-m', "--name_excel", type=str, default='/home/MicroReports/
 args = parser.parse_args()
 
 
-
 info_client = pd.read_excel(args.result_excel).fillna('NA')
 Interpretation = pd.read_excel(args.result_excel, sheet_name='species_report').fillna('NA')
 sheet=pd.read_excel(args.result_excel,sheet_name=None)
@@ -875,8 +874,7 @@ def table7_make(sample_code: str,
         pat_sample_id_list.append(handle_df['样本编号'].iloc[0]+'-s')
     pat_sample_id = pat_sample_id_list[0]    
     #drug_resistance_info = info_client[(info_client['患者姓名'] == pat_name) & (info_client['备注'].str.contains('普通耐药'))]
-    #drug_resistance_info = info_client[(info_client['患者姓名'] == pat_name) & (info_client['样本编号'] == pat_sample_id) &(info_client['备注'].str.contains('结核耐药'))]
-    drug_resistance_info = info_client[(info_client['患者姓名'] == pat_name) & (info_client['样本编号'] == pat_sample_id) &(info_client['备注'].str.contains('普通耐药'))]
+    drug_resistance_info = info_client[(info_client['患者姓名'] == pat_name) & (info_client['样本编号'] == pat_sample_id) &(info_client['备注'].str.contains('结核耐药'))]
     # print(drug_resistance_info)
     table_list = []
     if drug_resistance_info.shape[0] != 0:
@@ -1059,8 +1057,8 @@ def make_word_report(sample_code: str,
     project_shortname = project_shorthand(sample_code)
     #print(project_shortname)
     suffix = dic_client[sample_code]['检测项目'].split('测')[-1]
-    print('suffix',suffix)
-    result_report_name = filename_date + '_'+ sample_code + '_' + str(dic_client[sample_code]['姓名'])+'_RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位'+ suffix + '.docx'
+    #print(suffix)
+    result_report_name = filename_date + '_'+ sample_code + '_' + str(dic_client[sample_code]['姓名'])+'_RDseq-呼吸感染症候群基因检测+耐药基因鉴定'+ suffix + '.docx'
     manufacturer = dic_client[sample_code]['代理商']
     sample_result_name_list = Nor(dic_client[sample_code]['检测微生物']).split(",")
     project = info_client.loc[info_client['样本编号'] == sample_code, '检测项目'].iloc[0]
@@ -1080,7 +1078,6 @@ def make_word_report(sample_code: str,
         else:
             df_name = report_dic[project_shortname][0] + '.xlsx'
             open_name = doc_dic[project_shortname][0] + '.docx'
-    print(df_name)
     open_docx_path = os.path.join(args.word_template_folder,manufacturer,open_name)
     if open_docx_path and os.path.exists(open_docx_path):
         doc = DocxTemplate(open_docx_path)
@@ -1114,8 +1111,7 @@ def make_word_report(sample_code: str,
 
     if '耐药基因' in project:
             table_number = 4
-            #result_report_name = "{}RDseq-呼吸感染症候群基因检测+耐药基因鉴定.docx".format(value['姓名'])
-            #result_report_name = filename_date + '_'+ sample_code + '_' + str(dic_client[sample_code]['姓名'])+'_RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位'+ suffix + '.docx'
+            result_report_name = "{}RDseq-呼吸感染症候群基因检测+耐药基因鉴定.docx".format(value['姓名'])
             logging.info(f"{result_report_name}开始生成")
             number = 1
             appendix_color_change(doc=doc,table_list=dic_client[sample_code]['表8信息'],number=number)
@@ -1132,7 +1128,6 @@ def make_word_report(sample_code: str,
         sample_result_name_list.remove('na')
     excel_reader = pd.ExcelFile(os.path.join(args.excel_template_folder,df_name))
     sheet_name_list = excel_reader.sheet_names
-    print(sheet_name_list)
     df1 = excel_reader.parse(sheet_name=sheet_name_list[0])
     try:
         df2 = excel_reader.parse(sheet_name=sheet_name_list[1])
@@ -1684,11 +1679,11 @@ info_client['采样时间'] = info_client['采样时间'].map(lambda x: str(x).s
 
 ###############################################
 # MTB和NTM的耐药基因和对应药物
-MTB_gene_dict = {'rpoB':['利福平'],'embB':['乙胺丁醇'],'pncA':['吡嗪酰胺'],'katG':['异烟肼'],'inhA':['异烟肼','乙硫异烟胺','丙硫异烟胺'],'gyrA':['氟喹诺酮类'],'gyrB':['氟喹诺酮类'],'rpsL':['链霉素'],'rrs':['链霉素','阿米卡星','卡那霉素','卷曲霉素'],'folC':['对氨基水杨酸'],'thyA':['对氨基水杨酸'],'alr':['环丝氨酸'],'Rv0678':['氯法齐明','贝达喹啉'],'rplC':['利奈唑胺']}
+MTB_gene_dict = {'rpoB':['利福平'],'embB':['乙胺丁醇'],'pncA':['吡嗪酰胺'],'katG':['异烟肼'],'inhA':['异烟肼','乙硫异烟胺','丙硫异烟胺'],'gyrA':['氟喹诺酮类'],'gyrB':['氟喹诺酮类'],'rpsL':['链霉素'],'rrs':['链霉素','阿米卡星','卡那霉素','卷曲霉素'],'folC':['对氨基水杨酸钠'],'thyA':['对氨基水杨酸钠'],'alr':['环丝氨酸'],'Rv0678':['氯法齐明','贝达喹啉'],'rplC':['利奈唑胺']}
 NTM_gene_dict = {'rrl':['克拉霉素','阿奇霉素'],'erm':['克拉霉素','阿奇霉素'],'rrs':['阿米卡星','卡那霉素','庆大霉素']}
 # 药物分类
 first_list = ['利福平','异烟肼','吡嗪酰胺','乙胺丁醇']
-second_list = ['阿米卡星','氟喹诺酮类','乙硫异烟胺','丙硫异烟胺','对氨基水杨酸','链霉素','卡那霉素','卷曲霉素','环丝氨酸','氯法齐明','贝达喹啉','利奈唑胺']
+second_list = ['阿米卡星','氟喹诺酮类','乙硫异烟胺','丙硫异烟胺','对氨基水杨酸钠','链霉素','卡那霉素','卷曲霉素','环丝氨酸','氯法齐明','贝达喹啉','利奈唑胺']
 NTM_list = ['克拉霉素','阿奇霉素','阿米卡星','卡那霉素','庆大霉素']
 # 附录中的种
 appendix_species = [ '结核分枝杆菌', '非洲分枝杆菌', '牛分枝杆菌', '山羊分枝杆菌', '田鼠分枝杆菌', '卡内蒂分枝杆菌', '鳍脚分枝杆菌', '獴分枝杆菌', '鸟分枝杆菌', '胞内分枝杆菌', '副胞内分枝杆菌', '堪萨斯分枝杆菌', '龟分枝杆菌', '脓肿分枝杆菌', '猿猴分枝杆菌', '溃疡分枝杆菌', '偶发分枝杆菌', '玛尔摩分枝杆菌', '海分枝杆菌', '马赛分枝杆菌', '戈登分枝杆菌', '副戈登分枝杆菌', '产粘液分枝杆菌']
@@ -1703,7 +1698,7 @@ doc_dic = {
 # 查询结果名称的字典
 report_dic = {
             #'RD': ['RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位'],
-            'HX': ['RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位DNA','RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位DNA+RNA','RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位RNA']
+            'HX': ['RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位','RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位DNA+RNA','RDseq-呼吸感染症候群基因检测+耐药基因鉴定-定位RNA']
 }
 # 调用模板的字典
 doc_list = ['seegene']
@@ -1751,7 +1746,7 @@ for row_index in range(info_client.shape[0]):
         dic_client[info_client['样本编号'][row_index]]['补充微生物'] = info_client['补充报告结果'][row_index]
         receivedate = str(info_client['收样时间'][row_index]).strip().split(' ')[0]
         reportdate = str(info_client['报告日期'][row_index]).split(' ')[0].strip()
-        print('reportdate',reportdate)
+        #print(reportdate)
         if receivedate != 'NA':
             dic_client[info_client['样本编号'][row_index]]['收样日期'] = receivedate.split('/')[0]+'.'+receivedate.split('/')[1]+'.'+receivedate.split('/')[2]
         else:
@@ -1792,14 +1787,9 @@ for row_index in range(info_client.shape[0]):
         #print(info_client_info2)
         #print(info_client)
         colname = str(info_client_info2.loc[info_client['样本编号'] ==  pat_sample_id, 'barcode'].iloc[0]) + '_' + str(project_shorthand(info_client['样本编号'][row_index])) + '_' + str(info_client['患者姓名'][row_index]) + '_' + str(info_client['样本编号'][row_index])+'-s'
-        Delete_short_name = '_' + str(project_shorthand(info_client['样本编号'][row_index]))
-        colname2 = colname.replace(Delete_short_name,'')
         print(colname)
         #print(picture_dtat_df.at[8, colname])
-        try:
-            dic_client[info_client['样本编号'][row_index]]['平均长度'] = picture_dtat_df.at[8, colname]
-        except:
-            dic_client[info_client['样本编号'][row_index]]['平均长度'] = picture_dtat_df.at[8, colname2]
+        dic_client[info_client['样本编号'][row_index]]['平均长度'] = picture_dtat_df.at[8, colname]
         shortname = project_shorthand(info_client['样本编号'][row_index])
         #print(shortname)
         if type(shortname) != int:
@@ -1818,7 +1808,7 @@ for row_index in range(info_client.shape[0]):
             #print(AMR_stat_df)
             dic_client[info_client['样本编号'][row_index]]['测序深度'] = str(int(AMR_stat_df[AMR_stat_colname][11])) + '×'
             dic_client[info_client['样本编号'][row_index]]['覆盖率'] = str(float(format(AMR_stat_df[AMR_stat_colname][12], '.2f'))) + '%'
-            make_picture_depth(AMR_stat_colname=AMR_stat_colname,AMR_stat_df=args.result_excel,file_name=file_name)#输入表中患者带有shortname，作图和识别也要带有shortname
+            make_picture_depth(AMR_stat_colname=AMR_stat_colname,AMR_stat_df=args.result_excel,file_name=file_name)
         else:
             #dic_client[info_client['样本编号'][row_index]]['图片文件名'] = file_name + '.png'
             dic_client[info_client['样本编号'][row_index]]['测序深度'] = '--'
@@ -1854,9 +1844,9 @@ for row_index in range(info_client.shape[0]):
             dic_client[info_client['样本编号'][row_index]]['example'] = clinical(sample_code=info_client['样本编号'][row_index],info_client=info_client,medical_DB=medical_DB,manufacturer=manufacturer)
             #length_colname = str(info_client['barcode'][row_index]) + '_' + str(project_shorthand(info_client['样本编号'][row_index])) + '_' + str(dic_client[info_client['样本编号'][row_index]]['姓名']) + '_' + str(info_client['样本编号'][row_index])
             #print(length_colname)
-            dic_client[info_client['样本编号'][row_index]]['测序长度图片文件名'] = colname2 + '_length.png'#测序长度名称不带有shortname表中长度不带有shortname
-            dic_client[info_client['样本编号'][row_index]]['测序长度图片文件名单独'] = colname2 + '_length_single.png'#测序长度名称不带有shortname
-            make_picture_length(length_colname=colname2,picture_dtat_df=picture_dtat_df)#长度使用没有shortname作图
+            dic_client[info_client['样本编号'][row_index]]['测序长度图片文件名'] = colname + '_length.png'
+            dic_client[info_client['样本编号'][row_index]]['测序长度图片文件名单独'] = colname + '_length_single.png'
+            make_picture_length(length_colname=colname,picture_dtat_df=picture_dtat_df)
             if info_client['正式报告结果'][row_index] != ',' and info_client['正式报告结果'][row_index] != '，' and info_client['正式报告结果'][row_index] != 'NA':
                 dic_client[info_client['样本编号'][row_index]]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
             else:
@@ -1866,19 +1856,15 @@ for row_index in range(info_client.shape[0]):
 logging.info("所有信息处理完成！")
 #print(dic_client)
 #print(reportdate)
-try:
-    filename_date = reportdate.split('/')[0]+reportdate.split('/')[1]+reportdate.split('/')[2]
-except:
-    filename_date = reportdate.split('-')[0]+reportdate.split('-')[1]+reportdate.split('-')[2]
+filename_date = reportdate.split('/')[0]+reportdate.split('/')[1]+reportdate.split('/')[2]
 
-# if __name__=='__main__':
-#     p = Pool(args.processes_number)     
-#     for sample_code,value in dic_client.items():
-#         p.apply_async(make_word_report,args=(sample_code,dic_client,report_dic,doc_dic,medical_DB,value,complex_df,appendix_species,filename_date))
-#     p.close()
-#     p.join()
-# logging.info(f"所有报告生成成功！")
+if __name__=='__main__':
+    p = Pool(args.processes_number)     
+    for sample_code,value in dic_client.items():
+        p.apply_async(make_word_report,args=(sample_code,dic_client,report_dic,doc_dic,medical_DB,value,complex_df,appendix_species,filename_date))
+    p.close()
+    p.join()
+logging.info(f"所有报告生成成功！")
 
-for sample_code,value in dic_client.items():
-    print(value)
-    make_word_report(sample_code=sample_code,dic_client=dic_client,report_dic=report_dic,doc_dic=doc_dic,medical_DB=medical_DB,value=value,complex_df=complex_df,appendix_species=appendix_species,filename_date=filename_date)
+# for sample_code,value in dic_client.items():
+#     make_word_report(sample_code=sample_code,dic_client=dic_client,report_dic=report_dic,doc_dic=doc_dic,medical_DB=medical_DB,value=value,complex_df=complex_df,appendix_species=appendix_species,filename_date=filename_date)
