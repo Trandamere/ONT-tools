@@ -301,7 +301,7 @@ def move_picture(doc,
     target = None
     for paragraph in doc.paragraphs:
         paragraph_text = paragraph.text
-        if paragraph_text.endswith('测序深度统计'):
+        if '测序深度统计' in paragraph_text:
             # print(paragraph_text)
             target = paragraph
             break
@@ -540,9 +540,9 @@ def appendix_color_change(doc,
     number: int
     ) -> None:
     if number == 1:
-        table_number_list = [9,10]
+        table_number_list = [10,11]
     else:
-        table_number_list = [11]
+        table_number_list = [12]
     for table_number in table_number_list:
         table = doc.tables[table_number]
         rownums = len(table.rows)
@@ -593,7 +593,7 @@ def color_change2(doc,
     ) -> None:
     handle_df = info_client.query('样本编号 == @sample_code').iloc[0,:]
     result_list = handle_df['正式报告结果'].split(',')
-    table = doc.tables[6]
+    table = doc.tables[7]
     rownums = len(table.rows)
     find_list = []
     for bac_name in result_list:
@@ -665,14 +665,34 @@ def color_change2(doc,
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                     result_list.remove(bac_name)
                     find_list.append(chinese_name)
+#def move_picture_barcode(doc,
+#    png_name: str,
+#    barcode_picture_path):
+#    table = doc.tables[0]
+#    png_name=png_name.replace('-s','')
+#    paragraph=table.cell(0,0).paragraphs[0]
+#    run = paragraph.add_run()
+#    # print('barcode_list[0]',barcode_list[0])
+#    os.chdir(barcode_picture_path)
+#    barcode_list=os.listdir('.')
+#    try:
+#        run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.5),height=Cm(2.5))
+#        print(barcode_list)
+#    except:
+#        for picture_name in barcode_list:
+#            if str(png_name) in str(picture_name):
+#                print(png_name,picture_name)
+#                run.add_picture(barcode_picture_path+picture_name,width=Cm(2.5),height=Cm(2.5))
+#    print(barcode_picture_path+png_name+'.png')
+#    return doc
 def move_picture_barcode(doc,
     png_name: str,
     barcode_picture_path):
     table = doc.tables[0]
-    paragraph=table.cell(0,0).paragraphs[0]
-    run = paragraph.add_run()
     png_name=png_name.replace('-s','')
-    run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.5),height=Cm(2.5))
+    paragraph=table.cell(1,0).paragraphs[0]
+    run = paragraph.add_run()
+    run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.1),height=Cm(2.1))
     print(barcode_picture_path+png_name+'.png')
     return doc
 
@@ -790,6 +810,7 @@ for row_index in range(info_client.shape[0]):
         # dic_client[info_client['样本编号'][row_index]]['MTB检出基因'] = result_info[0]
         # dic_client[info_client['样本编号'][row_index]]['NTM检出基因'] = result_info[0]
 logging.info("所有信息处理完成！")
+print(dic_client)
 # 输出文件夹的创建
 filename_date = reportdate.split('/')[0]+reportdate.split('/')[1]+reportdate.split('/')[2]
 result_file_name = result_file_name.lower()
@@ -830,9 +851,8 @@ for sample_code,value in dic_client.items():
         result_file = os.path.join(save_path, result_report_name)
         try:
             doc = move_picture_barcode(doc=doc, png_name=sample_code,barcode_picture_path=barcode_picture_path)
-        except IndexError:
-            logging.info(f"{value['患者姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
-            pass
+        except:
+            print(value['姓名']+'的结果条形码图片未找到，请核对是否放入数据库中')
         doc.save(result_file)
         logging.info(f"{result_report_name}生成成功！")
     else:
@@ -847,9 +867,8 @@ for sample_code,value in dic_client.items():
         result_file = os.path.join(save_path, result_report_name)
         try:
             doc = move_picture_barcode(doc=doc, png_name=sample_code,barcode_picture_path=barcode_picture_path)
-        except IndexError:
-            pass
-            logging.info(f"{value['患者姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
+        except:
+            print(value['姓名']+'的结果条形码图片未找到，请核对是否放入数据库中')
         doc.save(result_file)
         logging.info(f"{result_report_name}生成成功！")
 logging.info(f"开始汇总结果！")
