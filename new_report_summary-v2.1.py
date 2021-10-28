@@ -20,6 +20,7 @@ from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 from docx.shared import Inches
 import datetime
+import copy
 
 # 打印出运行的时间
 time1 = '运行时间：' + str(datetime.datetime.now())
@@ -40,9 +41,10 @@ parser.add_argument('-s', "--summary_excel", type=str, default='/mnt/c/Users/lup
 parser.add_argument('-o', "--output_dir", type=str, default='/mnt/c/Users/luping/Desktop/报告流程/TNP/OUTPUT/',help="supplement sample result")
 parser.add_argument('-B', "--barcode_picutre", type=str, default='/mnt/c/Users/luping/Desktop/报告流程/RD/barcode/',help="条形码图片所在")
 args = parser.parse_args()
+
 info_client = pd.read_excel(args.result_excel).fillna('NA')
 Interpretation = pd.read_excel(args.result_excel, sheet_name='species_report').fillna('NA')
-sheet=pd.read_excel(args.result_excel,sheet_name=None)
+sheet = pd.read_excel(args.result_excel, sheet_name=None)
 if 'resistance_report' in list(sheet.keys()):
     drug_resistance_df = pd.read_excel(args.result_excel, sheet_name='resistance_report').fillna('NA')
     if drug_resistance_df.shape[0] == 0:
@@ -73,8 +75,8 @@ def change_bacteria_list(bacteria_list: list):
 
 # 标准化输入内容名称所用函数(变小写)
 def Nor(x: str
-    ) -> str:
-    first: str= x.strip()
+        ) -> str:
+    first: str = x.strip()
     standardized_string: str = " ".join(first.split())
     standardized_string: str = standardized_string.lower()
     return standardized_string
@@ -82,17 +84,17 @@ def Nor(x: str
 
 # 标准化输入列名称所用函数
 def Nor_col(x: str
-    ) -> str:
-    first: str= str(x).strip()
+            ) -> str:
+    first: str = str(x).strip()
     standardized_string: str = " ".join(first.split())
     return standardized_string
 
 
 def make_picture(length_colname: str,
-    picture_dtat_df: pd.DataFrame,
-    ) -> None:
+                 picture_dtat_df: pd.DataFrame,
+                 ) -> None:
     R_out = length_colname + '.r'
-    rscript=f'''#! /path/to/Rscript
+    rscript = f'''#! /path/to/Rscript
 library(openxlsx)
 library(ggplot2)
 data<- read.xlsx('{args.result_excel}', sheet='length_report')
@@ -107,7 +109,7 @@ theme(panel.grid=element_blank(), panel.background=element_rect(color="black", f
 theme(axis.text =element_text(size=7))
 ggsave(file="{length_colname}.png",read_length_hist, width = 6, height = 3)
     '''
-    out = open(R_out,'w')
+    out = open(R_out, 'w')
     out.write(rscript)
     out.close()
     cmd = "Rscript " + R_out
@@ -116,11 +118,11 @@ ggsave(file="{length_colname}.png",read_length_hist, width = 6, height = 3)
 
 
 def move_picture(doc,
-    png_name: str
-    ) -> None:
+                 png_name: str
+                 ) -> None:
     table = doc.add_table(rows=1, cols=3)
     cell = table.cell(0, 1)
-    ph =cell.paragraphs[0]
+    ph = cell.paragraphs[0]
     run = ph.add_run()
     run.add_picture(png_name)
     target = None
@@ -131,7 +133,7 @@ def move_picture(doc,
             target = paragraph
             break
     move_table_after(table, target)
-    os.remove(png_name)
+    # os.remove(png_name)
     return doc
 
 
@@ -164,14 +166,14 @@ def project_shorthand(sample_code: str) -> str:
 
 # 在数据库中搜索表格信息
 def find_info(
-    result_list: list,
-    sample_code: str,
-    Interpretation: pd.DataFrame,
-    info_client: pd.DataFrame,
-    medical_DB: pd.DataFrame,
-    all_bac: list,
-    mic_dict: dict,
-    supplementary_results:int
+        result_list: list,
+        sample_code: str,
+        Interpretation: pd.DataFrame,
+        info_client: pd.DataFrame,
+        medical_DB: pd.DataFrame,
+        all_bac: list,
+        mic_dict: dict,
+        supplementary_results: int
 ) -> list:
     bac_list: list = []
     sample_result_list: list = []
@@ -179,7 +181,7 @@ def find_info(
     column_R = info_client.loc[info_client['样本编号'] == sample_code, 'barcode'].iloc[0] + '_R_' + project_shorthand(sample_code) + '_' + str(info_client.loc[info_client['样本编号'] == sample_code, '患者姓名'].iloc[0]) + '_' + sample_code
     for bac_name in result_list:
         compare_bac_name: str = Nor(bac_name)
-        dic_bac: dict ={}
+        dic_bac: dict = {}
         try:
             dic_bac['中文名'] = medical_DB.loc[medical_DB['英文名称'] == compare_bac_name, '种'].iloc[0]
         except IndexError:
@@ -189,42 +191,42 @@ def find_info(
             try:
                 dic_bac['分类顺序'] = mic_dict[dic_bac['分类']]
             except KeyError:
-                dic_bac['分类顺序'] = 0   
+                dic_bac['分类顺序'] = 0
         except IndexError:
             dic_bac['分类'] = 'NA'
             dic_bac['分类顺序'] = 0
-        if dic_bac['分类'] not in ['DNA病毒','RNA病毒','病毒','真菌','细菌']:
+        if dic_bac['分类'] not in ['DNA病毒', 'RNA病毒', '病毒', '真菌', '细菌']:
             dic_bac['分类'] = '其他病原'
             try:
                 dic_bac['分类顺序'] = mic_dict[dic_bac['分类']]
             except KeyError:
-                dic_bac['分类顺序'] = 0   
+                dic_bac['分类顺序'] = 0
         try:
 
-            dic_bac['相对丰度'] = '%.2f'%float(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_P].iloc[0])
+            dic_bac['相对丰度'] = '%.2f' % float(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_P].iloc[0])
         except KeyError:
             column_P = info_client.loc[info_client['样本编号'] == sample_code, 'barcode'].iloc[0] + '_P_' + str(info_client.loc[info_client['样本编号'] == sample_code, '患者姓名'].iloc[0]) + '_' + sample_code
-            dic_bac['相对丰度'] = '%.2f'%float(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_P].iloc[0])
+            dic_bac['相对丰度'] = '%.2f' % float(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_P].iloc[0])
         except IndexError:
             dic_bac['相对丰度'] = 'NA'
         try:
             try:
-                dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0].replace('*',''))
+                dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0].replace('*', ''))
             except:
                 dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0])
         except KeyError:
             try:
                 column_R = info_client.loc[info_client['样本编号'] == sample_code, 'barcode'].iloc[0] + '_R_' + str(info_client.loc[info_client['样本编号'] == sample_code, '患者姓名'].iloc[0]) + '_' + sample_code
-                dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0].replace('*',''))
+                dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0].replace('*', ''))
             except:
                 column_R = info_client.loc[info_client['样本编号'] == sample_code, 'barcode'].iloc[0] + '_R_' + str(info_client.loc[info_client['样本编号'] == sample_code, '患者姓名'].iloc[0]) + '_' + sample_code
                 dic_bac['序列数'] = int(Interpretation.loc[Interpretation['name'] == compare_bac_name, column_R].iloc[0])
         except IndexError:
             dic_bac['序列数'] = 'NA'
-        report_name = bac_name.replace("[","")
-        dic_bac['微生物'] = report_name.replace("]","")
+        report_name = bac_name.replace("[", "")
+        dic_bac['微生物'] = report_name.replace("]", "")
         try:
-            dic_bac['备注'] = medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
+            dic_bac['备注'] = medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
         except IndexError:
             dic_bac['备注'] = 'NA'
         try:
@@ -250,13 +252,13 @@ def find_info(
             dic_bac['备注'] = '--'
             dic_bac['中文名'] = '--'
             sample_result_list.append(dic_bac)
-    sample_result_list: list = sorted(sample_result_list, key = lambda x:x['分类顺序'])
+    sample_result_list: list = sorted(sample_result_list, key=lambda x: x['分类顺序'])
     return sample_result_list
-    
+
 
 # 分类正式报告结果
 def microbial_classification(bacteria_list: list,
-    medical_DB: pd.DataFrame) -> list:
+                             medical_DB: pd.DataFrame) -> list:
     result1_list = []
     result2_list = []
     result3_list = []
@@ -288,27 +290,27 @@ def microbial_classification(bacteria_list: list,
             result7_list.append(microbial)
         else:
             logging.info(f"{microbial}没有在数据库中找到，导致报告中未显示！")
-    return [result1_list,result2_list,result3_list,result4_list,result5_list,result6_list,result7_list]
+    return [result1_list, result2_list, result3_list, result4_list, result5_list, result6_list, result7_list]
 
 
 # 表格信息的生成1
 def table_context(sample_code: str,
-    info_client: pd.DataFrame,
-    Interpretation: pd.DataFrame,
-    formal_report: str,
-    supplementary_report: str,
-    medical_DB: pd.DataFrame) -> list:
+                  info_client: pd.DataFrame,
+                  Interpretation: pd.DataFrame,
+                  formal_report: str,
+                  supplementary_report: str,
+                  medical_DB: pd.DataFrame) -> list:
 
     # print(sample_code)
     if 'RNA' in info_client.loc[info_client['样本编号'] == sample_code, '检测项目'].iloc[0] and 'DNA' not in info_client.loc[info_client['样本编号'] == sample_code, '检测项目'].iloc[0]:
         all_bac: list = ['RNA病毒']
-        mic_dict: dict = {'RNA病毒':1}
+        mic_dict: dict = {'RNA病毒': 1}
     elif 'RNA' in info_client.loc[info_client['样本编号'] == sample_code, '检测项目'].iloc[0]:
-        all_bac: list = ['细菌', '真菌', 'DNA病毒', 'RNA病毒','其他病原']
-        mic_dict: dict = {'细菌':1, '真菌':2, 'DNA病毒':3, 'RNA病毒':4, '其他病原':5}
+        all_bac: list = ['细菌', '真菌', 'DNA病毒', 'RNA病毒', '其他病原']
+        mic_dict: dict = {'细菌': 1, '真菌': 2, 'DNA病毒': 3, 'RNA病毒': 4, '其他病原': 5}
     else:
         all_bac: list = ['细菌', '真菌', 'DNA病毒', '其他病原']
-        mic_dict: dict = {'细菌':1, '真菌':2, 'DNA病毒':3, '其他病原':4}
+        mic_dict: dict = {'细菌': 1, '真菌': 2, 'DNA病毒': 3, '其他病原': 4}
     bacteria_list: list = []
     if formal_report != 'NA':
         bacteria_list: list = formal_report.split(',')
@@ -325,25 +327,25 @@ def table_context(sample_code: str,
         table2_list: list = find_info(result_list=bacteria_list, sample_code=sample_code, Interpretation=Interpretation, info_client=info_client, medical_DB=medical_DB, all_bac=all_bac, mic_dict=mic_dict, supplementary_results=supplementary_results)
     else:
         table2_list = [{'中文名': '--', '分类': '--', '分类顺序': 1, '相对丰度': '--', '序列数': '--', '微生物': '--', '备注': '--'}]
-    return [table1_list,table2_list]
+    return [table1_list, table2_list]
 
 
 # 表格信息的生成2
 def table2_context(sample_code: str,
-    info_client: pd.DataFrame,
-    Interpretation: pd.DataFrame,
-    formal_report: str,
-    supplementary_report: str,
-    medical_DB: pd.DataFrame) -> list:
+                   info_client: pd.DataFrame,
+                   Interpretation: pd.DataFrame,
+                   formal_report: str,
+                   supplementary_report: str,
+                   medical_DB: pd.DataFrame) -> list:
     # print(sample_code)
-    all_bac_list: list = [['细菌'],['细菌'],['真菌'],['DNA病毒'],['RNA病毒'],['其他病原'],['寄生虫']]
-    mic_dict_list: dict = [{'细菌':1}, {'细菌':1}, {'真菌':1}, {'DNA病毒':1,}, {'RNA病毒':1},{'其他病原':1},{'寄生虫':1}]
+    all_bac_list: list = [['细菌'], ['细菌'], ['真菌'], ['DNA病毒'], ['RNA病毒'], ['其他病原'], ['寄生虫']]
+    mic_dict_list: dict = [{'细菌': 1}, {'细菌': 1}, {'真菌': 1}, {'DNA病毒': 1, }, {'RNA病毒': 1}, {'其他病原': 1}, {'寄生虫': 1}]
     bacteria_list: list = []
     if formal_report != 'NA':
         bacteria_list: list = formal_report.split(',')
     # print(bacteria_list)
     # bacteria_list = change_bacteria_list(bacteria_list)
-    all_kinds_list = microbial_classification(bacteria_list=bacteria_list,medical_DB=medical_DB)
+    all_kinds_list = microbial_classification(bacteria_list=bacteria_list, medical_DB=medical_DB)
     supplementary_results = 0
     table1_list = []
     for index, result_list in enumerate(all_kinds_list):
@@ -358,14 +360,14 @@ def table2_context(sample_code: str,
         table2_list: list = find_info(result_list=bacteria_list, sample_code=sample_code, Interpretation=Interpretation, info_client=info_client, medical_DB=medical_DB, all_bac=all_bac_list[0], mic_dict=mic_dict_list[0], supplementary_results=supplementary_results)
     else:
         table2_list = [{'中文名': '--', '分类': '--', '分类顺序': 1, '相对丰度': '--', '序列数': '--', '微生物': '--', '备注': '--'}]
-    return [table1_list,table2_list]
+    return [table1_list, table2_list]
 
 
 # 表格信息的生成2
 def table7_make(sample_code: str,
-    info_client: pd.DataFrame,
-    drug_resistance_df: pd.DataFrame
-    ) -> list:
+                info_client: pd.DataFrame,
+                drug_resistance_df: pd.DataFrame
+                ) -> list:
     handle_df = info_client[info_client['样本编号'] == sample_code]
     pat_name = handle_df['患者姓名'].iloc[0]
     drug_resistance_info = info_client[(info_client['患者姓名'] == pat_name) & (info_client['备注'].str.contains('普通耐药'))]
@@ -384,14 +386,14 @@ def table7_make(sample_code: str,
             drug_resistance_result = drug_resistance_df[drug_resistance_colname]
         gene_list = drug_resistance_df['gene'].tolist()
         for gene in gene_list:
-            number = drug_resistance_df.query('gene == @gene').iloc[0,:][drug_resistance_colname]
+            number = drug_resistance_df.query('gene == @gene').iloc[0, :][drug_resistance_colname]
             if int(number) != 0:
-                dic_bac ={}
+                dic_bac = {}
                 dic_bac['基因'] = gene
-                dic_bac['药物'] = drug_resistance_df.query('gene == @gene').iloc[0,:]['drug']
+                dic_bac['药物'] = drug_resistance_df.query('gene == @gene').iloc[0, :]['drug']
                 table_list.append(dic_bac)
     if len(table_list) == 0:
-        dic_bac ={}
+        dic_bac = {}
         dic_bac['基因'] = '--'
         dic_bac['药物'] = '--'
         table_list.append(dic_bac)
@@ -400,22 +402,22 @@ def table7_make(sample_code: str,
 
 # 临床解析的生成
 def clinical(sample_code: str,
-    info_client: pd.DataFrame,
-    medical_DB: pd.DataFrame,
-    formal_report: str,
-    supplementary_report: str,
-    manufacturer: str):
+             info_client: pd.DataFrame,
+             medical_DB: pd.DataFrame,
+             formal_report: str,
+             supplementary_report: str,
+             manufacturer: str):
     rt = RichText('')
-    if  manufacturer == 'beagle':
-        bacteria_list: list =  formal_report.split(',')
+    if manufacturer == 'beagle':
+        bacteria_list: list = formal_report.split(',')
     elif manufacturer == 'seegene' or 'boruilin' or 'beijing':
         if supplementary_report != 'NA':
-            bacteria_list: list =  supplementary_report.split(',')
+            bacteria_list: list = supplementary_report.split(',')
         else:
             return rt
     # bacteria_list = change_bacteria_list(bacteria_list)
     # print('bacteria_list',bacteria_list)
-    dic_number: dict = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二', 13:'十三', 14:'十四', 15:'十五', 16:'十六', 17:'十七', 18:'十八', 19:'十九', 20:'二十', 21:'二十一', 22:'二十二', 23:'二十三', 24:'二十四', 25:'二十五', 26:'二十六', 27:'二十七', 28:'二十八', 29:'二十九', 30:'三十'}
+    dic_number: dict = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九', 10: '十', 11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五', 16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十', 21: '二十一', 22: '二十二', 23: '二十三', 24: '二十四', 25: '二十五', 26: '二十六', 27: '二十七', 28: '二十八', 29: '二十九', 30: '三十'}
     drug_indication_value: int = 0
     for index, bac_name in enumerate(bacteria_list):
         compare_bac_name: str = Nor(bac_name)
@@ -425,28 +427,28 @@ def clinical(sample_code: str,
                 chinese_name: str = str(medical_DB.loc[medical_DB['英文名称'] == compare_bac_name, '种'].iloc[0])
             else:
                 chinese_name = ''
-            rt.add(dic_number[index+1]+' '+chinese_name, bold=True)
+            rt.add(dic_number[index + 1] + ' ' + chinese_name, bold=True)
             rt.add('(', bold=True)
-            report_name: str = bac_name.replace("[","")
-            report_name: str = report_name.replace("]","")
+            report_name: str = bac_name.replace("[", "")
+            report_name: str = report_name.replace("]", "")
             rt.add(report_name, italic=True, bold=True)
             rt.add(')\n', bold=True)
-            if  manufacturer == 'beagle':
+            if manufacturer == 'beagle':
                 try:
-                    if str(medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '常用药物'].iloc[0]) != 'NA':
-                        rt.add('    '+'1 临床意义', bold=True)
-                        rt.add('\n'+'    '+medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0] )
-                        rt.add('\n'+'    '+'2 常用药物', bold=True)
-                        rt.add('\n'+'    '+str(medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '常用药物'].iloc[0])+'\n'  )
+                    if str(medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '常用药物'].iloc[0]) != 'NA':
+                        rt.add('    ' + '1 临床意义', bold=True)
+                        rt.add('\n' + '    ' + medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0])
+                        rt.add('\n' + '    ' + '2 常用药物', bold=True)
+                        rt.add('\n' + '    ' + str(medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '常用药物'].iloc[0]) + '\n')
                         drug_indication_value += 1
-                    elif str(medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0]) != 'NA':
-                        rt.add('    '+'临床意义', bold=True)
-                        rt.add('\n'+'    '+medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0]+'\n' )
+                    elif str(medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0]) != 'NA':
+                        rt.add('    ' + '临床意义', bold=True)
+                        rt.add('\n' + '    ' + medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0] + '\n')
                 except IndexError:
                     logging.info(f"正式结果中的{bac_name}在数据库中的检测项目信息有问题，影响临床解析的生成")
             elif manufacturer == 'seegene' or 'boruilin' or 'beijing':
                 try:
-                    rt.add('    '+medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0]+'\n')
+                    rt.add('    ' + medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '临床意义'].iloc[0] + '\n')
                 except IndexError:
                     logging.info(f"正式结果中的{bac_name}在数据库中的检测项目信息有问题，影响临床解析的生成")
         except IndexError:
@@ -458,37 +460,37 @@ def clinical(sample_code: str,
 
 # 参考文献的生成
 def reference(sample_code: str,
-    formal_report: str,
-    supplementary_report: str):
-    bacteria_list: list =  formal_report.split(',')
-    dic_number: dict = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二', 13:'十三', 14:'十四', 15:'十五', 16:'十六', 17:'十七', 18:'十八', 19:'十九', 20:'二十', 21:'二十一', 22:'二十二', 23:'二十三', 24:'二十四', 25:'二十五', 26:'二十六', 27:'二十七', 28:'二十八', 29:'二十九', 30:'三十'}
+              formal_report: str,
+              supplementary_report: str):
+    bacteria_list: list = formal_report.split(',')
+    dic_number: dict = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九', 10: '十', 11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五', 16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十', 21: '二十一', 22: '二十二', 23: '二十三', 24: '二十四', 25: '二十五', 26: '二十六', 27: '二十七', 28: '二十八', 29: '二十九', 30: '三十'}
     index_str: int = len(bacteria_list) + 1
-    rt = RichText(dic_number[index_str]+'、'+'参考文献\n')
+    rt = RichText(dic_number[index_str] + '、' + '参考文献\n')
     all_reference_list: list = []
     reference_list: list = []
     for bac_name in bacteria_list:
         compare_bac_name: str = Nor(bac_name)
         try:
-            new_reference: str = medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '参考文献'].iloc[0]
+            new_reference: str = medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '参考文献'].iloc[0]
             for literature in new_reference.split("\n"):
                 all_reference_list.append(literature[2:])
             reference_list: list = list(set(all_reference_list))
         except IndexError:
             pass
     for index, val in enumerate(reference_list):
-        rt.add(str(index+1)+'.'+str(val)+'\n')
+        rt.add(str(index + 1) + '.' + str(val) + '\n')
     return rt
 
 
 # seegene报告修改表格
 def form_modification(doc,
-    dic_client: dict,
-    sample_code: str):
+                      dic_client: dict,
+                      sample_code: str):
     # table = doc.tables[3]
     # if len(doc.tables[3].rows) != 2:
     table = doc.tables[4]
     if len(doc.tables[4].rows) != 2:
-        add_dict = {'number_1':[],'number_2':[],'number_3':[],'number_4':[],'number_5':[],'number_6':[],'number_7':[]}
+        add_dict = {'number_1': [], 'number_2': [], 'number_3': [], 'number_4': [], 'number_5': [], 'number_6': [], 'number_7': []}
         for line_info in dic_client[sample_code]['表9信息']:
             if line_info['分类'] == '细菌':
                 add_dict['number_2'].append(line_info)
@@ -506,27 +508,27 @@ def form_modification(doc,
         while number < 8:
             table_info_name = f'表{number}信息'
             table_info = dic_client[sample_code][table_info_name]
-            change_color_table = doc.tables[4+number]
+            change_color_table = doc.tables[4 + number]
             if table_info[0]['微生物'] != '--':
-                for i,line in enumerate(table_info):
+                for i, line in enumerate(table_info):
                     row = i + 2
                     col = len(change_color_table.columns)
                     for col_number in range(col):
-                        run = change_color_table.cell(row,col_number).paragraphs[0]
+                        run = change_color_table.cell(row, col_number).paragraphs[0]
                         content = run.text
                         run.text = ''
                         run = run.add_run(content)
-                        run.font.color.rgb = RGBColor(255,0,0)
+                        run.font.color.rgb = RGBColor(255, 0, 0)
                         run.font.size = Pt(10)
                         run.font.name = 'Times New Roman'
                         run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                         if col_number == 1:
-                            run.italic = True              
+                            run.italic = True
             else:
-                run = change_color_table.cell(2,1).paragraphs[0]
+                run = change_color_table.cell(2, 1).paragraphs[0]
                 run.text = ''
                 run = run.add_run('--')
-                run.font.color.rgb = RGBColor(0,0,0)
+                run.font.color.rgb = RGBColor(0, 0, 0)
                 run.font.size = Pt(10)
                 run.font.name = 'Times New Roman'
                 run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
@@ -549,62 +551,62 @@ def form_modification(doc,
                         else:
                             result_list.append(input_dict['微生物'])
                 if len(result_list) != 0:
-                        result_info = "，".join(result_list)
-                        run = table.cell(number,1).paragraphs[0]
-                        run.text = ''
-                        run = run.add_run(result_info)
-                        run.font.color.rgb = RGBColor(255,0,0)
-                        run.font.size = Pt(11)
-                        run.font.name = 'Times New Roman'
-                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                    result_info = "，".join(result_list)
+                    run = table.cell(number, 1).paragraphs[0]
+                    run.text = ''
+                    run = run.add_run(result_info)
+                    run.font.color.rgb = RGBColor(255, 0, 0)
+                    run.font.size = Pt(11)
+                    run.font.name = 'Times New Roman'
+                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                 if add_number != 0:
-                    p = table.cell(number,1).paragraphs[0]
+                    p = table.cell(number, 1).paragraphs[0]
                     if p.text != '未检出疑似病原体':
                         run = p.add_run('，疑似微生态菌群')
                     else:
                         p.text = ''
                         run = p.add_run('疑似微生态菌群')
-                    run.font.color.rgb = RGBColor(255,0,0)
+                    run.font.color.rgb = RGBColor(255, 0, 0)
                     run.font.size = Pt(11)
                     run.font.name = 'Times New Roman'
-                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')    
+                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
             number += 1
-        table_info =  dic_client[sample_code]['表8信息']
+        table_info = dic_client[sample_code]['表8信息']
         if table_info[0]['基因'] != '--':
             for infp_dict in table_info:
                 result_list.append(infp_dict['基因'])
             result_info = ",".join(result_list)
-            run = table.cell(number,1).paragraphs[0]
+            run = table.cell(number, 1).paragraphs[0]
             run.text = ''
             run = run.add_run(result_info)
-            run.font.color.rgb = RGBColor(255,0,0)
+            run.font.color.rgb = RGBColor(255, 0, 0)
             run.font.size = Pt(11)
             run.font.name = 'Arial'
             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
             run.italic = True
     else:
-        table_info =  dic_client[sample_code]['表4信息']
-        change_color_table = doc.tables[4]
+        table_info = dic_client[sample_code]['表5信息']
+        change_color_table = doc.tables[5]
         if table_info[0]['微生物'] != '--':
-            for i,line in enumerate(table_info):
+            for i, line in enumerate(table_info):
                 row = i + 2
                 col = len(change_color_table.columns)
                 for col_number in range(col):
-                    run = change_color_table.cell(row,col_number).paragraphs[0]
+                    run = change_color_table.cell(row, col_number).paragraphs[0]
                     content = run.text
                     run.text = ''
                     run = run.add_run(content)
-                    run.font.color.rgb = RGBColor(255,0,0)
+                    run.font.color.rgb = RGBColor(255, 0, 0)
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
                     run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                     if col_number == 1:
-                        run.italic = True     
+                        run.italic = True
         else:
-            run = change_color_table.cell(2,1).paragraphs[0]
+            run = change_color_table.cell(2, 1).paragraphs[0]
             run.text = ''
             run = run.add_run('--')
-            run.font.color.rgb = RGBColor(0,0,0)
+            run.font.color.rgb = RGBColor(0, 0, 0)
             run.font.size = Pt(10)
             run.font.name = 'Times New Roman'
         result_list = []
@@ -618,23 +620,23 @@ def form_modification(doc,
                 # print(result_list)
             if len(result_list) != 0:
                 result_info = "，".join(result_list)
-                run = table.cell(number,1).paragraphs[0]
+                run = table.cell(1, 1).paragraphs[0]
                 run.text = ''
                 run = run.add_run(result_info)
                 # print(run.text)
-                run.font.color.rgb = RGBColor(255,0,0)
+                run.font.color.rgb = RGBColor(255, 0, 0)
                 run.font.size = Pt(11)
                 run.font.name = 'Arial'
                 run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
 
 def form_modification2(doc,
-    dic_client: dict,
-    sample_code: str):
+                       dic_client: dict,
+                       sample_code: str):
     # table = doc.tables[3]
     # if len(doc.tables[3].rows) != 2:
     table = doc.tables[4]
     if len(doc.tables[4].rows) != 2:
-        add_dict = {'number_1':[],'number_2':[],'number_3':[],'number_4':[],'number_5':[],'number_6':[]}
+        add_dict = {'number_1': [], 'number_2': [], 'number_3': [], 'number_4': [], 'number_5': [], 'number_6': []}
         for line_info in dic_client[sample_code]['表9信息']:
             if line_info['分类'] == '细菌':
                 add_dict['number_2'].append(line_info)
@@ -648,38 +650,38 @@ def form_modification2(doc,
                 add_dict['number_5'].append(line_info)
             elif line_info['分类'] == '寄生虫':
                 add_dict['number_6'].append(line_info)
-        #print('add_dict',add_dict)
+        # print('add_dict',add_dict)
         number = 1
         while number < 7:
-            if number <5:
+            if number < 5:
                 table_info_name = f'表{number}信息'
-                #print('table_info_name',table_info_name)
+                # print('table_info_name',table_info_name)
                 table_info = dic_client[sample_code][table_info_name]
-                change_color_table = doc.tables[4+number]
-                #print('doc.tables[3+number]',3+number)
-                #print('table_info[0][微生物]',table_info)
+                change_color_table = doc.tables[4 + number]
+                # print('doc.tables[3+number]',3+number)
+                # print('table_info[0][微生物]',table_info)
                 if table_info[0]['微生物'] != '--':
-                    for i,line in enumerate(table_info):
-                        #print(i,line)
+                    for i, line in enumerate(table_info):
+                        # print(i,line)
                         row = i + 2
                         col = len(change_color_table.columns)
                         for col_number in range(col):
-                            run = change_color_table.cell(row,col_number).paragraphs[0]
+                            run = change_color_table.cell(row, col_number).paragraphs[0]
                             content = run.text
                             # print(content)
                             run.text = ''
                             run = run.add_run(content)
-                            run.font.color.rgb = RGBColor(255,0,0)
+                            run.font.color.rgb = RGBColor(255, 0, 0)
                             run.font.size = Pt(10)
                             run.font.name = 'Times New Roman'
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                             if col_number == 1:
                                 run.italic = True
                 else:
-                    run = change_color_table.cell(2,1).paragraphs[0]
+                    run = change_color_table.cell(2, 1).paragraphs[0]
                     run.text = ''
                     run = run.add_run('--')
-                    run.font.color.rgb = RGBColor(0,0,0)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
                     run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
@@ -702,59 +704,59 @@ def form_modification2(doc,
                             else:
                                 result_list.append(input_dict['微生物'])
                     if len(result_list) != 0:
-                            result_info = "，".join(result_list)
-                            run = table.cell(number,1).paragraphs[0]
-                            run.text = ''
-                            run = run.add_run(result_info)
-                            run.font.color.rgb = RGBColor(255,0,0)
-                            run.font.size = Pt(11)
-                            run.font.name = 'Times New Roman'
-                            run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                        result_info = "，".join(result_list)
+                        run = table.cell(number, 1).paragraphs[0]
+                        run.text = ''
+                        run = run.add_run(result_info)
+                        run.font.color.rgb = RGBColor(255, 0, 0)
+                        run.font.size = Pt(11)
+                        run.font.name = 'Times New Roman'
+                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                     if add_number != 0:
-                        p = table.cell(number,1).paragraphs[0]
+                        p = table.cell(number, 1).paragraphs[0]
                         if p.text != '未检出疑似病原体':
                             run = p.add_run('，疑似微生态菌群')
                         else:
                             p.text = ''
                             run = p.add_run('疑似微生态菌群')
-                        run.font.color.rgb = RGBColor(255,0,0)
+                        run.font.color.rgb = RGBColor(255, 0, 0)
                         run.font.size = Pt(11)
                         run.font.name = 'Times New Roman'
-                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')    
+                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                 number += 1
-            elif number == 6:
+            elif number == 5:
                 pass
                 number += 1
             else:
                 table_info_name = f'表{number}信息'
                 # print('table_info_name',table_info_name)
                 table_info = dic_client[sample_code][table_info_name]
-                change_color_table = doc.tables[2+number]
+                change_color_table = doc.tables[3 + number]
                 # print('doc.tables[3+number]',3+number)
                 if table_info[0]['微生物'] != '--':
-                    for i,line in enumerate(table_info):
+                    for i, line in enumerate(table_info):
                         row = i + 2
                         col = len(change_color_table.columns)
                         for col_number in range(col):
-                            run = change_color_table.cell(row,col_number).paragraphs[0]
+                            run = change_color_table.cell(row, col_number).paragraphs[0]
                             content = run.text
                             run.text = ''
                             run = run.add_run(content)
-                            run.font.color.rgb = RGBColor(255,0,0)
+                            run.font.color.rgb = RGBColor(255, 0, 0)
                             run.font.size = Pt(10)
                             run.font.name = 'Times New Roman'
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                             if col_number == 1:
-                                run.italic = True              
+                                run.italic = True
                 else:
-                    run = change_color_table.cell(2,1).paragraphs[0]
+                    run = change_color_table.cell(2, 1).paragraphs[0]
                     run.text = ''
                     run = run.add_run('--')
-                    run.font.color.rgb = RGBColor(0,0,0)
+                    run.font.color.rgb = RGBColor(0, 0, 0)
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
                     run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
-                add_key = f'number_{number-1}'
+                add_key = f'number_{number - 1}'
                 table_info.extend(add_dict[add_key])
                 result_list = []
                 if len(table_info) != 1 or table_info[0]['微生物'] != '--':
@@ -773,62 +775,62 @@ def form_modification2(doc,
                             else:
                                 result_list.append(input_dict['微生物'])
                     if len(result_list) != 0:
-                            result_info = "，".join(result_list)
-                            run = table.cell(number-1,1).paragraphs[0]
-                            run.text = ''
-                            run = run.add_run(result_info)
-                            run.font.color.rgb = RGBColor(255,0,0)
-                            run.font.size = Pt(11)
-                            run.font.name = 'Times New Roman'
-                            run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                        result_info = "，".join(result_list)
+                        run = table.cell(number - 1, 1).paragraphs[0]
+                        run.text = ''
+                        run = run.add_run(result_info)
+                        run.font.color.rgb = RGBColor(255, 0, 0)
+                        run.font.size = Pt(11)
+                        run.font.name = 'Times New Roman'
+                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                     if add_number != 0:
-                        p = table.cell(number-1,1).paragraphs[0]
+                        p = table.cell(number - 1, 1).paragraphs[0]
                         if p.text != '未检出疑似病原体':
                             run = p.add_run('，疑似微生态菌群')
                         else:
                             p.text = ''
                             run = p.add_run('疑似微生态菌群')
-                        run.font.color.rgb = RGBColor(255,0,0)
+                        run.font.color.rgb = RGBColor(255, 0, 0)
                         run.font.size = Pt(11)
                         run.font.name = 'Times New Roman'
-                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')    
-                number += 1             
-        table_info =  dic_client[sample_code]['表8信息']
+                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                number += 1
+        table_info = dic_client[sample_code]['表8信息']
         if table_info[0]['基因'] != '--':
             for infp_dict in table_info:
                 result_list.append(infp_dict['基因'])
             result_info = ",".join(result_list)
-            run = table.cell(number,1).paragraphs[0]
+            run = table.cell(number, 1).paragraphs[0]
             run.text = ''
             run = run.add_run(result_info)
-            run.font.color.rgb = RGBColor(255,0,0)
+            run.font.color.rgb = RGBColor(255, 0, 0)
             run.font.size = Pt(11)
             run.font.name = 'Arial'
             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
             run.italic = True
     else:
-        table_info =  dic_client[sample_code]['表4信息']
+        table_info = dic_client[sample_code]['表4信息']
         change_color_table = doc.tables[4]
         if table_info[0]['微生物'] != '--':
-            for i,line in enumerate(table_info):
+            for i, line in enumerate(table_info):
                 row = i + 2
                 col = len(change_color_table.columns)
                 for col_number in range(col):
-                    run = change_color_table.cell(row,col_number).paragraphs[0]
+                    run = change_color_table.cell(row, col_number).paragraphs[0]
                     content = run.text
                     run.text = ''
                     run = run.add_run(content)
-                    run.font.color.rgb = RGBColor(255,0,0)
+                    run.font.color.rgb = RGBColor(255, 0, 0)
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
                     run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                     if col_number == 1:
-                        run.italic = True     
+                        run.italic = True
         else:
-            run = change_color_table.cell(2,1).paragraphs[0]
+            run = change_color_table.cell(2, 1).paragraphs[0]
             run.text = ''
             run = run.add_run('--')
-            run.font.color.rgb = RGBColor(0,0,0)
+            run.font.color.rgb = RGBColor(0, 0, 0)
             run.font.size = Pt(10)
             run.font.name = 'Times New Roman'
         result_list = []
@@ -842,61 +844,61 @@ def form_modification2(doc,
                 # print(result_list)
             if len(result_list) != 0:
                 result_info = "，".join(result_list)
-                run = table.cell(number,1).paragraphs[0]
+                run = table.cell(1, 1).paragraphs[0]
                 run.text = ''
                 run = run.add_run(result_info)
                 # print(run.text)
-                run.font.color.rgb = RGBColor(255,0,0)
+                run.font.color.rgb = RGBColor(255, 0, 0)
                 run.font.size = Pt(11)
                 run.font.name = 'Arial'
                 run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
 # 检出微生物添加到附录中
 def add_micro(df: pd.DataFrame,
-    chinese_name: str,
-    genus_name: str,
-    micro_type: str,
-    pathogenicity_info: str,
-    col_numbers: int,
-    classification: str
-) -> pd.DataFrame:
+              chinese_name: str,
+              genus_name: str,
+              micro_type: str,
+              pathogenicity_info: str,
+              col_numbers: int,
+              classification: str
+              ) -> pd.DataFrame:
     # print('df',df)
     appendix_list = df.iloc[:, 1].apply(Nor).tolist()
     # print(appendix_list)
     # print(Nor(chinese_name))
     # print(Nor(genus_name))
     if (Nor(chinese_name) in appendix_list) and (Nor(genus_name) in appendix_list):
-        micro_row = df[df.iloc[:, 1].apply(Nor)==chinese_name].index.tolist()[0]
-        genus_row = df[df.iloc[:, 1].apply(Nor)==genus_name].index.tolist()[0]
+        micro_row = df[df.iloc[:, 1].apply(Nor) == chinese_name].index.tolist()[0]
+        genus_row = df[df.iloc[:, 1].apply(Nor) == genus_name].index.tolist()[0]
         df.loc[micro_row, '结果'] = '检出'
         df.loc[genus_row, '结果'] = '检出'
     elif (Nor(genus_name) in appendix_list):
-        genus_row = df[df.iloc[:, 1].apply(Nor)==genus_name].index.tolist()[0]
+        genus_row = df[df.iloc[:, 1].apply(Nor) == genus_name].index.tolist()[0]
         df1 = df.loc[:genus_row]
-        df2 = df.loc[(genus_row+1):]          
+        df2 = df.loc[(genus_row + 1):]
         if col_numbers == 3:
-            df3 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:['  '+chinese_name],df.columns.tolist()[2]:['检出']})
+            df3 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: ['  ' + chinese_name], df.columns.tolist()[2]: ['检出']})
         else:
-            df3 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:['  '+chinese_name],df.columns.tolist()[2]:[pathogenicity_info],df.columns.tolist()[3]:['检出']}) 
-        df = df1.append(df3, ignore_index = True).append(df2, ignore_index = True)
+            df3 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: ['  ' + chinese_name], df.columns.tolist()[2]: [pathogenicity_info], df.columns.tolist()[3]: ['检出']})
+        df = df1.append(df3, ignore_index=True).append(df2, ignore_index=True)
         df.loc[genus_row, '结果'] = '检出'
     elif '病毒' not in classification:
         if col_numbers == 3:
-            df4 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:[genus_name],df.columns.tolist()[2]:['检出']})
-            df5 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:['  '+chinese_name],df.columns.tolist()[2]:['检出']})            
+            df4 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: [genus_name], df.columns.tolist()[2]: ['检出']})
+            df5 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: ['  ' + chinese_name], df.columns.tolist()[2]: ['检出']})
         else:
-            df4 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:[genus_name],df.columns.tolist()[2]:[pathogenicity_info],df.columns.tolist()[3]:['检出']})
-            df5 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:['  '+chinese_name],df.columns.tolist()[2]:[pathogenicity_info],df.columns.tolist()[3]:['检出']})
-        df = df.append(df4, ignore_index = True).append(df5, ignore_index = True)
+            df4 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: [genus_name], df.columns.tolist()[2]: [pathogenicity_info], df.columns.tolist()[3]: ['检出']})
+            df5 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: ['  ' + chinese_name], df.columns.tolist()[2]: [pathogenicity_info], df.columns.tolist()[3]: ['检出']})
+        df = df.append(df4, ignore_index=True).append(df5, ignore_index=True)
     if '病毒' in classification:
         if (Nor(chinese_name) in appendix_list):
-            micro_row = df[df.iloc[:, 1].apply(Nor)==chinese_name].index.tolist()[0]
+            micro_row = df[df.iloc[:, 1].apply(Nor) == chinese_name].index.tolist()[0]
             df.loc[micro_row, '结果'] = '检出'
         else:
             if col_numbers == 3:
-                df6 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:[chinese_name],df.columns.tolist()[2]:['检出']}) 
+                df6 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: [chinese_name], df.columns.tolist()[2]: ['检出']})
             else:
-                df6 = pd.DataFrame({df.columns.tolist()[0]:[micro_type],df.columns.tolist()[1]:[chinese_name],df.columns.tolist()[2]:[pathogenicity_info],df.columns.tolist()[3]:['检出']})
-            df = df.append(df6, ignore_index = True)
+                df6 = pd.DataFrame({df.columns.tolist()[0]: [micro_type], df.columns.tolist()[1]: [chinese_name], df.columns.tolist()[2]: [pathogenicity_info], df.columns.tolist()[3]: ['检出']})
+            df = df.append(df6, ignore_index=True)
     return df
 
 
@@ -943,118 +945,118 @@ def move_table_after(table, paragraph):
 
 # 定义表格的文字特征
 def change_format(table,
-    row:int,
-    col:int
-    ):
-    run = table.cell(row,col).paragraphs[0]
+                  row: int,
+                  col: int
+                  ):
+    run = table.cell(row, col).paragraphs[0]
     content = run.text
     run.text = ''
     run = run.add_run(content)
-    run.font.color.rgb = RGBColor(0,0,0)
+    run.font.color.rgb = RGBColor(0, 0, 0)
     run.font.size = Pt(9)
     run.font.name = 'Arial'
-    run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')    
+    run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
     if run.text == '检出':
-        run.font.color.rgb = RGBColor(255,0,0)
-        run = table.cell(row,col-1).paragraphs[0]
+        run.font.color.rgb = RGBColor(255, 0, 0)
+        run = table.cell(row, col - 1).paragraphs[0]
         content = run.text
         run.text = ''
         run = run.add_run(content)
-        run.font.color.rgb = RGBColor(255,0,0)
+        run.font.color.rgb = RGBColor(255, 0, 0)
         run.font.size = Pt(9)
         run.font.name = 'Arial'
-        run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')  
-        run = table.cell(row,col-2).paragraphs[0]
+        run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
+        run = table.cell(row, col - 2).paragraphs[0]
         content = run.text
         run.text = ''
         run = run.add_run(content)
-        run.font.color.rgb = RGBColor(255,0,0)
+        run.font.color.rgb = RGBColor(255, 0, 0)
         run.font.size = Pt(9)
         run.font.name = 'Arial'
-        run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')         
+        run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
         if len(table.columns) != 6:
-            run = table.cell(row,col-3).paragraphs[0]
+            run = table.cell(row, col - 3).paragraphs[0]
             content = run.text
             run.text = ''
             run = run.add_run(content)
-            run.font.color.rgb = RGBColor(255,0,0)
+            run.font.color.rgb = RGBColor(255, 0, 0)
             run.font.size = Pt(9)
             run.font.name = 'Arial'
-            run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑') 
+            run.element.rPr.rFonts.set(qn('w:eastAsia'), '微软雅黑')
 
 
 
 # 将excel中的数据框转化为docx中的表格
 def change_type(df: pd.DataFrame,
-    table,
-    col_width_dic: dict
-    ):
+                table,
+                col_width_dic: dict
+                ):
     for col in list(range(len(table.columns))):
         for row in list(range(len(table.rows))):
 
             table.cell(row, col).width = col_width_dic[col]
             if row == 0:
                 try:
-                    table.cell(row,col).text = list(df.columns)[col]
+                    table.cell(row, col).text = list(df.columns)[col]
                     # print(table.cell(row,col).text)
-                    change_format(table,row,col)
-                    run = table.cell(row,col).paragraphs[0]
+                    change_format(table, row, col)
+                    run = table.cell(row, col).paragraphs[0]
                     run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 except IndexError:
-                    cell_col_index = col - int(len(table.columns)/2)
-                    table.cell(row,col).text = list(df.columns)[cell_col_index]
-                    change_format(table,row,col)
-                    run = table.cell(row,col).paragraphs[0]
+                    cell_col_index = col - int(len(table.columns) / 2)
+                    table.cell(row, col).text = list(df.columns)[cell_col_index]
+                    change_format(table, row, col)
+                    run = table.cell(row, col).paragraphs[0]
                     run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     # print(table.cell(row,col).text)
             else:
                 cell_col_index = col
                 cell_row_index = row - 1
                 try:
-                    table.cell(row,col).text = df.iloc[cell_row_index, cell_col_index]
-                    run = table.cell(row,col).paragraphs[0]
+                    table.cell(row, col).text = df.iloc[cell_row_index, cell_col_index]
+                    run = table.cell(row, col).paragraphs[0]
                     # print(table.cell(row,col).text)
-                    change_format(table,row,col)
-                    if cell_col_index == 1 and run.text != '--' :
+                    change_format(table, row, col)
+                    if cell_col_index == 1 and run.text != '--':
                         run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     else:
                         run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 except IndexError:
-                    cell_col_index -= int(len(table.columns)/2)
+                    cell_col_index -= int(len(table.columns) / 2)
                     cell_row_index = row + len(table.rows) - 2
-                    table.cell(row,col).text = df.iloc[cell_row_index, cell_col_index]
+                    table.cell(row, col).text = df.iloc[cell_row_index, cell_col_index]
                     # print(table.cell(row,col).text)
-                    change_format(table,row,col)
-                    run = table.cell(row,col).paragraphs[0]
-                    if cell_col_index == 1 and run.text != '--' :
+                    change_format(table, row, col)
+                    run = table.cell(row, col).paragraphs[0]
+                    if cell_col_index == 1 and run.text != '--':
                         run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     else:
                         run.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            Set_cell_border(table.cell(row,col),
-            top={"sz": 12, "val": "single", "color": "#F2F2F2"},
-            bottom={"sz": 12, "val": "single", "color": "#F2F2F2"},
-            start={"sz": 12, "val": "single", "color": "#F2F2F2"},
-            end={"sz": 12, "val": "single", "color": "#F2F2F2"})
+            Set_cell_border(table.cell(row, col),
+                            top={"sz": 12, "val": "single", "color": "#F2F2F2"},
+                            bottom={"sz": 12, "val": "single", "color": "#F2F2F2"},
+                            start={"sz": 12, "val": "single", "color": "#F2F2F2"},
+                            end={"sz": 12, "val": "single", "color": "#F2F2F2"})
     return table
 
 
 # word中改变首行背景
-def tabBgColor(table,cols,colorStr):
+def tabBgColor(table, cols, colorStr):
     shading_list = locals()
     for i in range(cols):
-        shading_list['shading_elm_'+str(i)] = parse_xml(r'<w:shd {} w:fill="{bgColor}"/>'.format(nsdecls('w'),bgColor = colorStr))
-        table.rows[0].cells[i]._tc.get_or_add_tcPr().append(shading_list['shading_elm_'+str(i)])
+        shading_list['shading_elm_' + str(i)] = parse_xml(r'<w:shd {} w:fill="{bgColor}"/>'.format(nsdecls('w'), bgColor=colorStr))
+        table.rows[0].cells[i]._tc.get_or_add_tcPr().append(shading_list['shading_elm_' + str(i)])
 
 
 # 解读数量确认并添加
 def Interpretation_addition(sample_code: str,
-    dic_client: dict,
-    doc,
-    insert_info: str):
-    dic_number: dict = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二', 13:'十三', 14:'十四', 15:'十五', 16:'十六', 17:'十七', 18:'十八', 19:'十九', 20:'二十', 21:'二十一', 22:'二十二', 23:'二十三', 24:'二十四', 25:'二十五', 26:'二十六', 27:'二十七', 28:'二十八', 29:'二十九', 30:'三十'}
+                            dic_client: dict,
+                            doc,
+                            insert_info: str):
+    dic_number: dict = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九', 10: '十', 11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五', 16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十', 21: '二十一', 22: '二十二', 23: '二十三', 24: '二十四', 25: '二十五', 26: '二十六', 27: '二十七', 28: '二十八', 29: '二十九', 30: '三十'}
     bac_list: list = dic_client[sample_code]['检测微生物'].split(',')
     Interpretation_list = []
-    for i,bac in enumerate(bac_list):
+    for i, bac in enumerate(bac_list):
         Interpretation_list.append(f'解读{dic_number[i + 1]}')
     for Interpretation in Interpretation_list:
         for paragraph in doc.paragraphs:
@@ -1066,18 +1068,18 @@ def Interpretation_addition(sample_code: str,
 
 # seegene模板添加解析表格
 def parse_table_add(sample_code: str,
-    dic_client: dict,
-    doc,
-    medical_DB: pd.DataFrame,
-    Interpretation_list: list):
-    dic_number: dict = {1:'一', 2:'二', 3:'三', 4:'四', 5:'五', 6:'六', 7:'七', 8:'八', 9:'九', 10:'十', 11:'十一', 12:'十二', 13:'十三', 14:'十四', 15:'十五', 16:'十六', 17:'十七', 18:'十八', 19:'十九', 20:'二十', 21:'二十一', 22:'二十二', 23:'二十三', 24:'二十四', 25:'二十五', 26:'二十六', 27:'二十七', 28:'二十八', 29:'二十九', 30:'三十'}
+                    dic_client: dict,
+                    doc,
+                    medical_DB: pd.DataFrame,
+                    Interpretation_list: list):
+    dic_number: dict = {1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九', 10: '十', 11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五', 16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十', 21: '二十一', 22: '二十二', 23: '二十三', 24: '二十四', 25: '二十五', 26: '二十六', 27: '二十七', 28: '二十八', 29: '二十九', 30: '三十'}
     bac_list: list = dic_client[sample_code]['检测微生物'].split(',')
     # bac_list = change_bacteria_list(bac_list)
     for bac_name in reversed(bac_list):
-        #print('bac_name',bac_name)
+        # print('bac_name',bac_name)
         if len(bac_name) != 0:
             number = dic_number[bac_list.index(bac_name) + 1]
-            #print('number',number)
+            # print('number',number)
             compare_bac_name = Nor(bac_name)
             table = doc.add_table(rows=3, cols=2)
             tabBgColor(table, 2, '#E1EFF9')
@@ -1086,7 +1088,7 @@ def parse_table_add(sample_code: str,
             for col in list(range(len(table.columns))):
                 for row in list(range(len(table.rows))):
                     if row == 0:
-                        if col == 0: 
+                        if col == 0:
                             table.cell(row, col).width = Cm(2.8)
                             try:
                                 if medical_DB.loc[medical_DB['英文名称'] == compare_bac_name, '种'].iloc[0] != 'NA':
@@ -1095,32 +1097,32 @@ def parse_table_add(sample_code: str,
                                     info = number + '、' + bac_name
                             except IndexError:
                                 info = number + '、' + bac_name
-                            run = table.cell(row,col).paragraphs[0]
+                            run = table.cell(row, col).paragraphs[0]
                             run = run.add_run(info)
-                            run.font.color.rgb = RGBColor(255,0,0)
+                            run.font.color.rgb = RGBColor(255, 0, 0)
                             run.font.size = Pt(12)
                             run.font.name = 'Times New Roman'
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                         Set_cell_border(table.cell(row, col), bottom={"sz": 24, "val": "single", "color": "#1F3864"})
                         table.cell(row, col).vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                     elif row == 1:
-                        if col == 0: 
+                        if col == 0:
                             table.cell(row, col).width = Cm(2.8)
                             info = '临床意义'
-                            run = table.cell(row,col).paragraphs[0]
+                            run = table.cell(row, col).paragraphs[0]
                             run = run.add_run(info)
                             run.font.size = Pt(12)
                             run.font.name = 'Times New Roman'
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                             run.font.bold = True
-                        elif col == 1: 
+                        elif col == 1:
                             table.cell(row, col).width = Cm(14.7)
                             try:
                                 info = medical_DB.loc[medical_DB['英文名称'] == compare_bac_name, '临床意义'].iloc[0]
                             except IndexError:
                                 info = 'NA'
-                            table.cell(row,col).paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                            run = table.cell(row,col).paragraphs[0]
+                            table.cell(row, col).paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                            run = table.cell(row, col).paragraphs[0]
                             run = run.add_run(info)
                             run.font.size = Pt(10.5)
                             run.font.name = 'Times New Roman'
@@ -1128,23 +1130,23 @@ def parse_table_add(sample_code: str,
                         Set_cell_border(table.cell(row, col), bottom={"sz": 4, "val": "single", "color": "#1F3864"})
                         table.cell(row, col).vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                     elif row == 2:
-                        if col == 0: 
+                        if col == 0:
                             table.cell(row, col).width = Cm(2.8)
                             info = '常用药物'
-                            run = table.cell(row,col).paragraphs[0]
+                            run = table.cell(row, col).paragraphs[0]
                             run = run.add_run(info)
                             run.font.size = Pt(12)
                             run.font.name = 'Times New Roman'
                             run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
                             run.font.bold = True
-                        elif col == 1: 
+                        elif col == 1:
                             table.cell(row, col).width = Cm(14.7)
                             try:
                                 info = medical_DB.loc[medical_DB['英文名称'] == compare_bac_name, '常用药物'].iloc[0]
                             except IndexError:
                                 info = 'NA'
-                            table.cell(row,col).paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                            run = table.cell(row,col).paragraphs[0]
+                            table.cell(row, col).paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                            run = table.cell(row, col).paragraphs[0]
                             run = run.add_run(info)
                             run.font.size = Pt(10.5)
                             run.font.name = 'Times New Roman'
@@ -1154,31 +1156,31 @@ def parse_table_add(sample_code: str,
             table.rows[0].height = Cm(1)
             table.rows[1].height = Cm(3.8)
             table.rows[2].height = Cm(6)
-            table.cell(0,0).merge(table.cell(0,1))
+            table.cell(0, 0).merge(table.cell(0, 1))
             target = None
             for paragraph in doc.paragraphs:
-                #print(paragraph.text)
+                # print(paragraph.text)
                 paragraph_text = paragraph.text
                 if paragraph_text.endswith(Interpretation):
                     target = paragraph
                     break
-            #print(table, target)
+            # print(table, target)
             move_table_after(table, target)
         for paragraph in doc.paragraphs:
             paragraph_text = paragraph.text
             if paragraph_text.endswith(Interpretation):
                 for run in paragraph.runs:
-                    run.text=run.text.replace(Interpretation,'')
+                    run.text = run.text.replace(Interpretation, '')
                 new_paragraph = target
 
 
 
 def make_word_report(sample_code: str,
-    dic_client: dict,
-    report_dic: dict,
-    doc_dic: dict,
-    medical_DB: pd.DataFrame
-    ) -> None:
+                     dic_client: dict,
+                     report_dic: dict,
+                     doc_dic: dict,
+                     medical_DB: pd.DataFrame
+                     ) -> None:
     # print(sample_code)
     # print(str(dic_client[sample_code]['姓名']))
     project_shortname = project_shorthand(sample_code)
@@ -1226,15 +1228,14 @@ def make_word_report(sample_code: str,
             open_name = doc_dic[project_shortname][0] + '.docx'
     # print('df_name',df_name)
     # print('open_name',open_name)
-    result_report_name = filename_date + '_'+ sample_code + '_' + str(dic_client[sample_code]['姓名'])+'_Seq&Treat病原微生物基因检测'+ suffix + '.docx'
+    result_report_name = filename_date + '_' + sample_code + '_' + str(dic_client[sample_code]['姓名']) + '_Seq&Treat病原微生物基因检测' + suffix + '.docx'
     # print(result_report_name)
     manufacturer = dic_client[sample_code]['代理商']
     # print(manufacturer)
-    save_path = os.path.join(args.output_dir, manufacturer,filename_date)
-    # print(save_path)
+    save_path = os.path.join(args.output_dir, manufacturer, filename_date)
     if save_path and not os.path.exists(save_path):
         os.makedirs(save_path)
-    open_docx_path = os.path.join(args.word_template_folder,manufacturer,open_name)
+    open_docx_path = os.path.join(args.word_template_folder, manufacturer, open_name)
     # print('open_docx_path ',open_docx_path)
     if open_docx_path and os.path.exists(open_docx_path):
         doc = DocxTemplate(open_docx_path)
@@ -1248,7 +1249,7 @@ def make_word_report(sample_code: str,
     # sample_result_name_list = change_bacteria_list(sample_result_name_list)
     if 'na' in sample_result_name_list:
         sample_result_name_list.remove('na')
-    excel_reader = pd.ExcelFile(os.path.join(args.excel_template_folder,df_name))
+    excel_reader = pd.ExcelFile(os.path.join(args.excel_template_folder, df_name))
     sheet_name_list = excel_reader.sheet_names
     # print('sheet_name_list',sheet_name_list)
     df1 = excel_reader.parse(sheet_name=sheet_name_list[0])
@@ -1257,12 +1258,12 @@ def make_word_report(sample_code: str,
         df2 = excel_reader.parse(sheet_name=sheet_name_list[1])
         # print('df2',df2)#读取真菌
     except IndexError:
-        df2 = []   
+        df2 = []
     try:
         df3 = excel_reader.parse(sheet_name=sheet_name_list[2])
         # print('df3',df3)#读取其他类型病原微生物
     except IndexError:
-        df3 = []   
+        df3 = []
     try:
         df4 = excel_reader.parse(sheet_name=sheet_name_list[3])
         # print('df41',df4)#读取人体共生菌
@@ -1273,17 +1274,17 @@ def make_word_report(sample_code: str,
     for result_name in sample_result_name_list:
         # print('result_name',result_name)
         try:
-            chinese_name = medical_DB.loc[(medical_DB['英文名称']== Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '种'].iloc[0]
+            chinese_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '种'].iloc[0]
             # print('chinese_name',chinese_name)
             if chinese_name != 'NA':
-                genus_name = medical_DB.loc[(medical_DB['英文名称']== Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '属'].iloc[0]
+                genus_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '属'].iloc[0]
                 # print('genus_name',genus_name)
                 if genus_name != 'NA' or '病毒' in chinese_name:
-                    micro_type = medical_DB.loc[(medical_DB['英文名称']== Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '类型'].iloc[0]
+                    micro_type = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '类型'].iloc[0]
                     # print('micro_type',micro_type)
-                    classification = medical_DB.loc[(medical_DB['英文名称']== Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '分类'].iloc[0]
+                    classification = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '分类'].iloc[0]
                     # print('classification',classification)
-                    pathogenicity_info = medical_DB.loc[(medical_DB['英文名称']== Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
+                    pathogenicity_info = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
                     # print('pathogenicity_info',pathogenicity_info)
                     if pathogenicity_info == '人体共生菌':
                         col_numbers = 3
@@ -1296,7 +1297,7 @@ def make_word_report(sample_code: str,
                         # print('df1',df1)
                     elif classification == sheet_name_list[1]:
                         col_numbers = 4
-                        df2 = add_micro(df2, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)              
+                        df2 = add_micro(df2, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
                     else:
                         col_numbers = 4
                         df3 = add_micro(df3, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
@@ -1308,51 +1309,51 @@ def make_word_report(sample_code: str,
             if result_name != 'NA':
                 # print('NA   result_name',result_name)
                 logging.info(f"生成{result_report_name}时发现，数据库中不存在{result_name},或数据库中{result_name}检测项目信息有问题")
-    df1['致病性'] = df1['致病性'].map(lambda x: x.replace("条件致病菌","条件致病"))
+    df1['致病性'] = df1['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
     if type(df2) != list:
-        df2['致病性'] = df2['致病性'].map(lambda x: x.replace("条件致病菌","条件致病")) 
+        df2['致病性'] = df2['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
     if type(df3) != list:
-        df3['致病性'] = df3['致病性'].map(lambda x: x.replace("条件致病菌","条件致病"))
+        df3['致病性'] = df3['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
     if type(df4) == list:
         if type(df3) == list:
             if type(df2) == list:
                 appendix_list = [df1]
             else:
-                appendix_list = [df1,df2]
+                appendix_list = [df1, df2]
         else:
-            appendix_list = [df1,df2,df3]
+            appendix_list = [df1, df2, df3]
     else:
-        appendix_list = [df1,df2,df3,df4]
+        appendix_list = [df1, df2, df3, df4]
     # print(df1)
     use_col_width_dic_list = col_width_dic_list
     use_expect_text_list_dict = expect_text_list_dict
     if 'RNA' in suffix and 'DNA' not in suffix:
         if manufacturer == 'seegene':
-            use_expect_text_list_dict = {'seegene':['RNA常见病毒筛查范围']}
+            use_expect_text_list_dict = {'seegene': ['RNA常见病毒筛查范围']}
             use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
         if manufacturer == 'boruilin':
-            use_expect_text_list_dict = {'boruilin':['RNA常见病毒筛查范围']}
+            use_expect_text_list_dict = {'boruilin': ['RNA常见病毒筛查范围']}
             use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
         if manufacturer == 'beijing':
-            use_expect_text_list_dict = {'beijing':['RNA常见病毒筛查范围']}
+            use_expect_text_list_dict = {'beijing': ['RNA常见病毒筛查范围']}
             use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
-    for index,df in enumerate(appendix_list):
-        while (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0])/2),1][0].isspace():
-            df.loc[df.shape[0]]=['--'] * df.shape[1]
-        row_num = int((df.shape[0])/2) + 1
+    for index, df in enumerate(appendix_list):
+        while (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0]) / 2), 1][0].isspace():
+            df.loc[df.shape[0]] = ['--'] * df.shape[1]
+        row_num = int((df.shape[0]) / 2) + 1
         col_num = 8
         if index == 3:
             col_num = 6
         table = doc.add_table(rows=row_num, cols=col_num)
         col_width_dic = use_col_width_dic_list[index]
-        table = change_type(df,table,col_width_dic)
+        table = change_type(df, table, col_width_dic)
         # print(result_report_name)
         # print(table)
         target = None
         for paragraph in doc.paragraphs:
             paragraph_text = paragraph.text
             # print(paragraph_text)
-            #print('use_expect_text_list_dict[manufacturer][index]',use_expect_text_list_dict[manufacturer][index])
+            # print('use_expect_text_list_dict[manufacturer][index]',use_expect_text_list_dict[manufacturer][index])
             if paragraph_text.endswith(use_expect_text_list_dict[manufacturer][index]):
                 # print(paragraph.text)
                 target = paragraph
@@ -1368,17 +1369,20 @@ def make_word_report(sample_code: str,
     #     print(paragraph.text)
     if dic_client[sample_code]['代理商'] == 'seegene' or 'boruilin' or 'beijing':
         if 'DNA' in suffix and 'RNA' in suffix:
-            form_modification(doc=doc,dic_client=dic_client,sample_code=sample_code)
+            form_modification(doc=doc, dic_client=dic_client, sample_code=sample_code)
+            mtb_table_num = 4
         elif 'RNA' in suffix:
-            form_modification(doc=doc,dic_client=dic_client,sample_code=sample_code)
+            form_modification(doc=doc, dic_client=dic_client, sample_code=sample_code)
         else:
-            form_modification2(doc=doc,dic_client=dic_client,sample_code=sample_code)
+            form_modification2(doc=doc, dic_client=dic_client, sample_code=sample_code)
+            mtb_table_num = 3
         # form_modification2(doc=doc,dic_client=dic_client,sample_code=sample_code)
         if dic_client[sample_code]['检测微生物'] != ',' and dic_client[sample_code]['检测微生物'] != '，' and dic_client[sample_code]['检测微生物'] != 'NA':
-            Interpretation_list = Interpretation_addition(sample_code=sample_code,dic_client=dic_client,doc=doc,insert_info=dic_client[sample_code]['注释'])
+            Interpretation_list = Interpretation_addition(sample_code=sample_code, dic_client=dic_client, doc=doc, insert_info=dic_client[sample_code]['注释'])
             # print('dic_client[sample_code][注释]',dic_client[sample_code]['注释'])
-            parse_table_add(sample_code=sample_code,dic_client=dic_client,doc=doc,medical_DB=medical_DB,Interpretation_list=Interpretation_list)#添加医学解读部分出问题
-        doc = move_picture(doc=doc,png_name=dic_client[sample_code]['图片文件名'])
+            parse_table_add(sample_code=sample_code, dic_client=dic_client, doc=doc, medical_DB=medical_DB, Interpretation_list=Interpretation_list)  # 添加医学解读部分出问题
+        # print('dic_client[sample_code][图片文件名]',dic_client[sample_code]['图片文件名'])
+        doc = move_picture(doc=doc, png_name=dic_client[sample_code]['图片文件名'])
     # print(result_report_name)
     # doc.save(result_report_name)
     # print(dic_client[sample_code])
@@ -1388,62 +1392,300 @@ def make_word_report(sample_code: str,
     # result_file = os.path.join(save_path, result_report_name)
     # print(dic_client[sample_code]['姓名'])
     try:
-        color_change3(doc=doc)
+        color_change3(doc=doc, number=mtb_table_num)
     except:
         pass
     try:
-        doc = move_picture_barcode(doc=doc, png_name=sample_code,barcode_picture_path=barcode_picture_path)
-    except IndexError:
-        logging.info(f"{value['患者姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
+        doc = move_picture_barcode(doc=doc, png_name=sample_code, barcode_picture_path=barcode_picture_path)
+    except:
+        print(dic_client[sample_code]['姓名'] + '的结果条形码图片未找到，请核对是否放入数据库中')
+        logging.info(f"{dic_client[sample_code]['姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
         pass
     doc.save(result_file)
     if result_file and os.path.exists(result_file):
         logging.info(f"{result_report_name}生成成功！")
-def color_change3(doc,
-    ) -> None:
-    number = 8
-    while number < 9:
-        table_info_name = f'表{number}信息'
-        # print(table_info_name)
-        table_info = dic_client[sample_code][table_info_name]
-        # print(table_info)
-        change_color_table = doc.tables[2+number]
-        if table_info[0]['基因'] != '--':
-            for i,line in enumerate(table_info):
-                row = i+2
-                col = len(change_color_table.columns)
-                #print(change_color_table(row,col).text)
-                for col_number in range(col):
-                    run = change_color_table.cell(row,col_number).paragraphs[0]
-                    content = run.text
-                    run.text = ''
-                    run = run.add_run(content)
-                    run.font.color.rgb = RGBColor(255,0,0)
-                    run.font.size = Pt(11)
-                    run.font.name = 'Times New Roman'
-                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
-                    if col_number == 0:
-                        run.italic = True
-        else:
-            run = change_color_table.cell(2,1).paragraphs[0]
-            run.text = ''
-            run = run.add_run('--')
-            run.font.color.rgb = RGBColor(0,0,0)
-            run.font.size = Pt(11)
-            run.font.name = 'Times New Roman'
-            run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')						
-        number += 1
 
-def make_excel_dict(df:pd.Series,
-    excel_list: list):
+
+##### DNA报告 #####
+def make_word_report_dna(sample_code: str,
+                         dic_client_dna: dict,
+                         report_dic: dict,
+                         doc_dic: dict,
+                         df_name,
+                         open_name,
+                         medical_DB: pd.DataFrame
+                         ) -> None:
+    manufacturer = dic_client_dna[sample_code]['代理商']
+    save_path = os.path.join(args.output_dir, manufacturer, filename_date)
+    if save_path and not os.path.exists(save_path):
+        os.makedirs(save_path)
+    sample_result_name_list = Nor(dic_client_dna[sample_code]['检测微生物']).split(",")
+    if Nor(dic_client_dna[sample_code]['补充微生物']) != 'na':
+        supply_result_name_list = Nor(dic_client_dna[sample_code]['补充微生物']).split(",")
+        sample_result_name_list.extend(supply_result_name_list)
+    if 'na' in sample_result_name_list:
+        sample_result_name_list.remove('na')
+
+    result_report_name = filename_date + '_' + sample_code + '_' + str(dic_client_dna[sample_code]['姓名']) + '_Seq&Treat病原微生物基因检测DNA.docx'
+    open_docx_path = os.path.join(args.word_template_folder, manufacturer, open_name)
+    if open_docx_path and os.path.exists(open_docx_path):
+        doc = DocxTemplate(open_docx_path)
+    else:
+        logging.info(f"生成{str(dic_client_dna[sample_code]['姓名'])}时发现，检测项目填写有误！")
+        return
+
+    excel_reader = pd.ExcelFile(os.path.join(args.excel_template_folder, df_name))
+    sheet_name_list = excel_reader.sheet_names
+    df1 = excel_reader.parse(sheet_name=sheet_name_list[0])
+    try:
+        df2 = excel_reader.parse(sheet_name=sheet_name_list[1])
+    except IndexError:
+        df2 = []
+    try:
+        df3 = excel_reader.parse(sheet_name=sheet_name_list[2])
+    except IndexError:
+        df3 = []
+    try:
+        df4 = excel_reader.parse(sheet_name=sheet_name_list[3])
+    except IndexError:
+        df4 = []
+    logging.info(f"{result_report_name}开始生成")
+    for result_name in sample_result_name_list:
+        try:
+            chinese_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '种'].iloc[0]
+            if chinese_name != 'NA':
+                genus_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '属'].iloc[0]
+                if genus_name != 'NA' or '病毒' in chinese_name:
+                    micro_type = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '类型'].iloc[0]
+                    classification = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '分类'].iloc[0]
+                    pathogenicity_info = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
+                    if pathogenicity_info == '人体共生菌':
+                        col_numbers = 3
+                        df4 = add_micro(df4, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
+                    elif classification == sheet_name_list[0]:
+                        col_numbers = 4
+                        df1 = add_micro(df1, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
+                    elif classification == sheet_name_list[1]:
+                        col_numbers = 4
+                        df2 = add_micro(df2, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
+                    else:
+                        col_numbers = 4
+                        df3 = add_micro(df3, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
+                else:
+                    logging.info(f"生成{result_report_name}时发现，数据库中{chinese_name}没有属名,请手动添加")
+            else:
+                logging.info(f"生成{result_report_name}时发现，数据库中{result_name}没有中文名,请手动添加")
+        except IndexError:
+            if result_name != 'NA':
+                logging.info(f"生成{result_report_name}时发现，数据库中不存在{result_name},或数据库中{result_name}检测项目信息有问题")
+    df1['致病性'] = df1['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
+    if type(df2) != list:
+        df2['致病性'] = df2['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
+    if type(df3) != list:
+        df3['致病性'] = df3['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
+    if type(df4) == list:
+        if type(df3) == list:
+            if type(df2) == list:
+                appendix_list = [df1]
+            else:
+                appendix_list = [df1, df2]
+        else:
+            appendix_list = [df1, df2, df3]
+    else:
+        appendix_list = [df1, df2, df3, df4]
+    use_col_width_dic_list = col_width_dic_list
+    use_expect_text_list_dict = expect_text_list_dict
+    for index, df in enumerate(appendix_list):
+        while (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0]) / 2), 1][0].isspace():
+            df.loc[df.shape[0]] = ['--'] * df.shape[1]
+        row_num = int((df.shape[0]) / 2) + 1
+        col_num = 8
+        if index == 3:
+            col_num = 6
+        table = doc.add_table(rows=row_num, cols=col_num)
+        col_width_dic = use_col_width_dic_list[index]
+        table = change_type(df, table, col_width_dic)
+        target = None
+        for paragraph in doc.paragraphs:
+            paragraph_text = paragraph.text
+            if paragraph_text.endswith(use_expect_text_list_dict[manufacturer][index]):
+                target = paragraph
+                break
+        move_table_after(table, target)
+    doc.render(dic_client_dna[sample_code])
+    result_file = os.path.join(save_path, result_report_name)
+    doc.save(result_file)
+    doc = DocxTemplate(result_file)
+    if dic_client_dna[sample_code]['代理商'] == 'seegene' or 'boruilin' or 'beijing':
+        form_modification2(doc=doc, dic_client=dic_client_dna, sample_code=sample_code)
+        mtb_table_num = 3
+        if dic_client_dna[sample_code]['检测微生物'] != ',' and dic_client_dna[sample_code]['检测微生物'] != '，' and dic_client_dna[sample_code]['检测微生物'] != 'NA':
+            Interpretation_list = Interpretation_addition(sample_code=sample_code, dic_client=dic_client_dna, doc=doc, insert_info=dic_client_dna[sample_code]['注释'])
+            parse_table_add(sample_code=sample_code, dic_client=dic_client_dna, doc=doc, medical_DB=medical_DB, Interpretation_list=Interpretation_list)
+        doc = move_picture(doc=doc, png_name=dic_client_dna[sample_code]['图片文件名'])
+    try:
+        color_change3(doc=doc, number=mtb_table_num)
+    except:
+        pass
+    try:
+        doc = move_picture_barcode(doc=doc, png_name=sample_code, barcode_picture_path=barcode_picture_path)
+    except:
+        print(dic_client_dna[sample_code]['姓名'] + '的结果条形码图片未找到，请核对是否放入数据库中')
+        logging.info(f"{dic_client_dna[sample_code]['姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
+        pass
+    doc.save(result_file)
+    if result_file and os.path.exists(result_file):
+        logging.info(f"{result_report_name}生成成功！")
+
+def color_change3(doc, number
+                  ) -> None:
+    #    number = 8
+    #    while number < 9:
+    table_info_name = f'表{number}信息'
+    # print(table_info_name)
+    table_info = dic_client[sample_code]['表8信息']
+    # print(table_info)
+    change_color_table = doc.tables[8 + number]
+    if table_info[0]['基因'] != '--':
+        for i, line in enumerate(table_info):
+            row = i + 2
+            col = len(change_color_table.columns)
+            # print(change_color_table(row,col).text)
+            for col_number in range(col):
+                run = change_color_table.cell(row, col_number).paragraphs[0]
+                content = run.text
+                run.text = ''
+                run = run.add_run(content)
+                run.font.color.rgb = RGBColor(255, 0, 0)
+                run.font.size = Pt(11)
+                run.font.name = 'Times New Roman'
+                run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+                if col_number == 0:
+                    run.italic = True
+    else:
+        run = change_color_table.cell(2, 1).paragraphs[0]
+        run.text = ''
+        run = run.add_run('--')
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        run.font.size = Pt(11)
+        run.font.name = 'Times New Roman'
+        run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+#        number += 1
+
+##### RNA报告 #####
+def make_word_report_rna(sample_code: str,
+                         dic_client_rna: dict,
+                         report_dic: dict,
+                         doc_dic: dict,
+                         df_name,
+                         open_name,
+                         medical_DB: pd.DataFrame
+                         ) -> None:
+    manufacturer = dic_client_rna[sample_code]['代理商']
+    save_path = os.path.join(args.output_dir, manufacturer, filename_date)
+    if save_path and not os.path.exists(save_path):
+        os.makedirs(save_path)
+    sample_result_name_list = Nor(dic_client_rna[sample_code]['检测微生物']).split(",")
+    if Nor(dic_client_rna[sample_code]['补充微生物']) != 'na':
+        supply_result_name_list = Nor(dic_client_rna[sample_code]['补充微生物']).split(",")
+        sample_result_name_list.extend(supply_result_name_list)
+    if 'na' in sample_result_name_list:
+        sample_result_name_list.remove('na')
+
+    result_report_name = filename_date + '_' + sample_code + '_' + str(dic_client_rna[sample_code]['姓名']) + '_Seq&Treat病原微生物基因检测RNA.docx'
+    open_docx_path = os.path.join(args.word_template_folder, manufacturer, open_name)
+    if open_docx_path and os.path.exists(open_docx_path):
+        doc = DocxTemplate(open_docx_path)
+    else:
+        logging.info(f"生成{str(dic_client_rna[sample_code]['姓名'])}时发现，检测项目填写有误！")
+        return
+
+    excel_reader = pd.ExcelFile(os.path.join(args.excel_template_folder, df_name))
+    sheet_name_list = excel_reader.sheet_names
+    print('sheet_name_list', sheet_name_list)
+    df1 = excel_reader.parse(sheet_name=sheet_name_list[0])
+    logging.info(f"{result_report_name}开始生成")
+    for result_name in sample_result_name_list:
+        try:
+            chinese_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '种'].iloc[0]
+            if chinese_name != 'NA':
+                genus_name = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '属'].iloc[0]
+                if genus_name != 'NA' or '病毒' in chinese_name:
+                    micro_type = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '类型'].iloc[0]
+                    classification = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '分类'].iloc[0]
+                    pathogenicity_info = medical_DB.loc[(medical_DB['英文名称'] == Nor(result_name)) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
+
+                    if classification == sheet_name_list[0]:
+                        col_numbers = 4
+                        df1 = add_micro(df1, chinese_name, genus_name, micro_type, pathogenicity_info, col_numbers, classification)
+                else:
+                    logging.info(f"生成{result_report_name}时发现，数据库中{chinese_name}没有属名,请手动添加")
+            else:
+                logging.info(f"生成{result_report_name}时发现，数据库中{result_name}没有中文名,请手动添加")
+        except IndexError:
+            if result_name != 'NA':
+                logging.info(f"生成{result_report_name}时发现，数据库中不存在{result_name},或数据库中{result_name}检测项目信息有问题")
+    df1['致病性'] = df1['致病性'].map(lambda x: x.replace("条件致病菌", "条件致病"))
+    appendix_list = [df1]
+    use_col_width_dic_list = col_width_dic_list
+    use_expect_text_list_dict = expect_text_list_dict
+    if manufacturer == 'seegene':
+        use_expect_text_list_dict = {'seegene': ['RNA常见病毒筛查范围']}
+        use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
+    if manufacturer == 'boruilin':
+        use_expect_text_list_dict = {'boruilin': ['RNA常见病毒筛查范围']}
+        use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
+    if manufacturer == 'beijing':
+        use_expect_text_list_dict = {'beijing': ['RNA常见病毒筛查范围']}
+        use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
+    for index, df in enumerate(appendix_list):
+        while (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0]) / 2), 1][0].isspace():
+            df.loc[df.shape[0]] = ['--'] * df.shape[1]
+        row_num = int((df.shape[0]) / 2) + 1
+        col_num = 8
+        if index == 3:
+            col_num = 6
+        table = doc.add_table(rows=row_num, cols=col_num)
+        col_width_dic = use_col_width_dic_list[index]
+        table = change_type(df, table, col_width_dic)
+        target = None
+        for paragraph in doc.paragraphs:
+            paragraph_text = paragraph.text
+            if paragraph_text.endswith(use_expect_text_list_dict[manufacturer][index]):
+                target = paragraph
+                break
+        move_table_after(table, target)
+    doc.render(dic_client_rna[sample_code])
+    result_file = os.path.join(save_path, result_report_name)
+    doc.save(result_file)
+    doc = DocxTemplate(result_file)
+    if dic_client_rna[sample_code]['代理商'] == 'seegene' or 'boruilin' or 'beijing':
+        form_modification(doc=doc, dic_client=dic_client_rna, sample_code=sample_code)
+        if dic_client_rna[sample_code]['检测微生物'] != ',' and dic_client_rna[sample_code]['检测微生物'] != '，' and dic_client_rna[sample_code]['检测微生物'] != 'NA':
+            Interpretation_list = Interpretation_addition(sample_code=sample_code, dic_client=dic_client_rna, doc=doc, insert_info=dic_client_rna[sample_code]['注释'])
+            parse_table_add(sample_code=sample_code, dic_client=dic_client_rna, doc=doc, medical_DB=medical_DB, Interpretation_list=Interpretation_list)
+        doc = move_picture(doc=doc, png_name=dic_client_rna[sample_code]['图片文件名'])
+    try:
+        doc = move_picture_barcode(doc=doc, png_name=sample_code, barcode_picture_path=barcode_picture_path)
+    except:
+        print(dic_client_rna[sample_code]['姓名'] + '的结果条形码图片未找到，请核对是否放入数据库中')
+        logging.info(f"{dic_client_rna[sample_code]['姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
+        pass
+    doc.save(result_file)
+    if result_file and os.path.exists(result_file):
+        logging.info(f"{result_report_name}生成成功！")
+
+
+def make_excel_dict(df: pd.Series,
+                    excel_list: list):
     line_info = str(df['样本编号']) + '_' + str(df['患者姓名']) + '_' + str(df['basecalling data']) + '_' + df['Reports']
     excel_list.append(line_info)
     return excel_list
 
 def read_report_species(
-    info_client,
-    medical_DB
-    ):
+        info_client,
+        medical_DB
+):
     dic_report = {}
     for row_index in range(info_client.shape[0]):
         if '通用引物' in info_client['备注'][row_index]:
@@ -1451,184 +1693,185 @@ def read_report_species(
             Sample_name = info_client['患者姓名'][row_index]
             # print(sample_code,Sample_name)
             # print(project_shortname)
-            #这里需要根据有*号的数据分别添加进对应患者姓名及编号的的字典，然后进行阴性，正式，补充报告
-            Sample_info = Sample_name+'_'+sample_code
+            # 这里需要根据有*号的数据分别添加进对应患者姓名及编号的的字典，然后进行阴性，正式，补充报告
+            Sample_info = Sample_name + '_' + sample_code
             # print('Sample_info', Sample_info)
-            dic_report.setdefault(Sample_info.replace(' ',''), {})
+            dic_report.setdefault(Sample_info.replace(' ', ''), {})
     # print('dic_report', dic_report)
-    for number in range(Interpretation.shape[0]):#遍历每一行标有*号的#再次输出归属列的表头
+    for number in range(Interpretation.shape[0]):  # 遍历每一行标有*号的#再次输出归属列的表头
         for number2 in range(Interpretation.shape[1]):
-            if   r'***' in str(Interpretation.iloc[number,number2]):#符合不同标准的*号进行对应患者信息的正式报告和补充报告
-                Name_id=('%s_%s'%(Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
+            if r'***' in str(Interpretation.iloc[number, number2]):  # 符合不同标准的*号进行对应患者信息的正式报告和补充报告
+                Name_id = ('%s_%s' % (Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
                 Species = Interpretation.iloc[number].iloc[0]
                 # print('阴性报告', Site, Species, Name_id)
                 # dic_report[Sample_info]['阴性报告'] = [Species]
-                if '阴性报告' in dic_report[Name_id.replace(' ','')].keys():
-                    Species2 = dic_report[Name_id.replace(' ','')]['阴性报告']
+                if '阴性报告' in dic_report[Name_id.replace(' ', '')].keys():
+                    Species2 = dic_report[Name_id.replace(' ', '')]['阴性报告']
                     Species2.append(Species)
-                    dic_report[Name_id.replace(' ','')]['阴性报告']=Species2
+                    dic_report[Name_id.replace(' ', '')]['阴性报告'] = Species2
                 else:
-                    dic_report[Name_id.replace(' ','')]['阴性报告'] = [Species]
-            elif r'**' in str(Interpretation.iloc[number,number2]):#符合不同标准的*号进行对应患者信息的正式报告和补充报告
-                Name_id=('%s_%s'%(Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
+                    dic_report[Name_id.replace(' ', '')]['阴性报告'] = [Species]
+            elif r'**' in str(Interpretation.iloc[number, number2]):  # 符合不同标准的*号进行对应患者信息的正式报告和补充报告
+                Name_id = ('%s_%s' % (Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
                 Species = Interpretation.iloc[number].iloc[0]
                 # print('补充报告', Site, Species, Name_id)
                 # dic_report[Sample_info]['补充报告'] = [Species]
-                if '补充报告' in dic_report[Name_id.replace(' ','')].keys():
-                    Species2 = dic_report[Name_id.replace(' ','')]['补充报告']
+                if '补充报告' in dic_report[Name_id.replace(' ', '')].keys():
+                    Species2 = dic_report[Name_id.replace(' ', '')]['补充报告']
                     Species2.append(Species)
-                    dic_report[Name_id.replace(' ','')]['补充报告']=Species2
+                    dic_report[Name_id.replace(' ', '')]['补充报告'] = Species2
                 else:
-                    dic_report[Name_id.replace(' ','')]['补充报告'] = [Species]
-            elif r'*' in str(Interpretation.iloc[number,number2]):#符合不同标准的*号进行对应患者信息的正式报告和补充报告
-                Name_id=('%s_%s'%(Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
+                    dic_report[Name_id.replace(' ', '')]['补充报告'] = [Species]
+            elif r'*' in str(Interpretation.iloc[number, number2]):  # 符合不同标准的*号进行对应患者信息的正式报告和补充报告
+                Name_id = ('%s_%s' % (Interpretation.iloc[number].axes[0][number2].split('_')[3], Interpretation.iloc[number].axes[0][number2].split('_')[4])).replace('-s', '')
                 Species = Interpretation.iloc[number].iloc[0]
                 # print('正式报告', Site, Species, Name_id)
                 # dic_report[Sample_info]['正式报告'] = [Species]
-                if '正式报告' in dic_report[Name_id.replace(' ','')].keys():
-                    Species2 = dic_report[Name_id.replace(' ','')]['正式报告']
+                if '正式报告' in dic_report[Name_id.replace(' ', '')].keys():
+                    Species2 = dic_report[Name_id.replace(' ', '')]['正式报告']
                     Species2.append(Species)
-                    dic_report[Name_id.replace(' ','')]['正式报告']=Species2
+                    dic_report[Name_id.replace(' ', '')]['正式报告'] = Species2
                 else:
-                    dic_report[Name_id.replace(' ','')]['正式报告'] = [Species]
-    print('dic_report', dic_report)#需要在这里进行不同报告物种的排序，以及同一物种多个菌的多序列降序排列
-    for key,value in dic_report.items():
+                    dic_report[Name_id.replace(' ', '')]['正式报告'] = [Species]
+    # print('dic_report', dic_report)#需要在这里进行不同报告物种的排序，以及同一物种多个菌的多序列降序排列
+    for key, value in dic_report.items():
         # print(key,value)
-        for keys,values in value.items():
-            if '阴性报告' in value.keys():#阴性报告无需进行排序分类
+        for keys, values in value.items():
+            if '阴性报告' in value.keys():  # 阴性报告无需进行排序分类
                 pass
-            else:#此处进行正式报告和补充报告的物种分类及序列降排序
-                if '正式报告' in value.keys():#阴性报告无需进行排序分类
-                    if len(value['正式报告'])==1:#只有一个菌不用排序#大写替换
-                        New_one=value['正式报告']
-                        New_one=list(map(lambda x: x[0].upper() + x[1:].lower(), New_one))#此处调整拉丁文大写
-                        dic_report[key]['正式报告']=New_one
+            else:  # 此处进行正式报告和补充报告的物种分类及序列降排序
+                if '正式报告' in value.keys():  # 阴性报告无需进行排序分类
+                    if len(value['正式报告']) == 1:  # 只有一个菌不用排序#大写替换
+                        New_one = value['正式报告']
+                        New_one = list(map(lambda x: x[0].upper() + x[1:].lower(), New_one))  # 此处调整拉丁文大写
+                        dic_report[key]['正式报告'] = New_one
                     else:
-                        print('正式报告长度', key, len(value['正式报告']))
-                        print('???????????????', key,keys,values)
-                        all_kinds_list = microbial_classification(bacteria_list=value['正式报告'],medical_DB=medical_DB)
-                        print('all_kinds_list',all_kinds_list)
-                        new_all_kinds_list=[]
+                        # print('正式报告长度', key, len(value['正式报告']))
+                        # print('???????????????', key,keys,values)
+                        all_kinds_list = microbial_classification(bacteria_list=value['正式报告'], medical_DB=medical_DB)
+                        # print('all_kinds_list',all_kinds_list)
+                        new_all_kinds_list = []
                         for I in all_kinds_list:
                             # print('I'*100,I)
-                            if len(I)==0:#分类后没有菌，不用进行排序
+                            if len(I) == 0:  # 分类后没有菌，不用进行排序
                                 pass
-                            elif len(I)==1:#分类后只有一个菌，不用进行排序
+                            elif len(I) == 1:  # 分类后只有一个菌，不用进行排序
                                 new_all_kinds_list.append(I[0])
                             else:
                                 # print(I)#此处需要遍历寻找物种中名字
-                                Sorting_sequence_number_list=[]
+                                Sorting_sequence_number_list = []
                                 for II in I:
-                                    Seqs=Sorting_sequence_number(Name_ID=key, Species_ID=II, Interpretation=Interpretation)
+                                    Seqs = Sorting_sequence_number(Name_ID=key, Species_ID=II, Interpretation=Interpretation)
                                     # print('Seqs',Seqs)
                                     Sorting_sequence_number_list.append(Seqs)
-                                Sorting_sequence_number_list.sort(key=lambda x:float(x[1]),reverse=True)###进行关键部分降序排列
-                                Sorted_list_1=[i[0] for i in  Sorting_sequence_number_list]
-                                print('Sorting_sequence_number_list',Sorting_sequence_number_list)
-                                print('Sorted_list_1',Sorted_list_1)
-                                #此处排序完成后进行字典键值替换
+                                Sorting_sequence_number_list.sort(key=lambda x: float(x[1]), reverse=True)  ###进行关键部分降序排列
+                                Sorted_list_1 = [i[0] for i in Sorting_sequence_number_list]
+                                # print('Sorting_sequence_number_list',Sorting_sequence_number_list)
+                                # print('Sorted_list_1',Sorted_list_1)
+                                # 此处排序完成后进行字典键值替换
                                 new_all_kinds_list.extend(Sorted_list_1)
-                        print('new_all_kinds_list',new_all_kinds_list)
-                        new_all_kinds_list = list(map(lambda x: x[0].upper() + x[1:].lower(), new_all_kinds_list))#此处调整拉丁文大写
-                        print('new_all_kinds_list',new_all_kinds_list)
-                        dic_report[key]['正式报告']=new_all_kinds_list
+                        # print('new_all_kinds_list',new_all_kinds_list)
+                        new_all_kinds_list = list(
+                            map(lambda x: x[0].upper() + x[1:].lower(), new_all_kinds_list))  # 此处调整拉丁文大写
+                        # print('new_all_kinds_list',new_all_kinds_list)
+                        dic_report[key]['正式报告'] = new_all_kinds_list
 
-                if  '补充报告' in value.keys():#阴性报告无需进行排序分类
-                    if len(value['补充报告'])==1:#只有一个菌不用排序
-                        New_one=value['补充报告']
-                        New_one=list(map(lambda x: x[0].upper() + x[1:].lower(), New_one))#此处调整拉丁文大写
-                        dic_report[key]['补充报告']=New_one
+                if '补充报告' in value.keys():  # 阴性报告无需进行排序分类
+                    if len(value['补充报告']) == 1:  # 只有一个菌不用排序
+                        New_one = value['补充报告']
+                        New_one = list(map(lambda x: x[0].upper() + x[1:].lower(), New_one))  # 此处调整拉丁文大写
+                        dic_report[key]['补充报告'] = New_one
                     else:
-                        print('补充报告长度', key, len(value['补充报告']))
-                        print('！！！！！！！！', key,keys,values)
-                        all_kinds_list2 = microbial_classification(bacteria_list=value['补充报告'],medical_DB=medical_DB)
-                        print(all_kinds_list2)
-                        new_all_kinds_list2=[]
+                        # print('补充报告长度', key, len(value['补充报告']))
+                        # print('！！！！！！！！', key,keys,values)
+                        all_kinds_list2 = microbial_classification(bacteria_list=value['补充报告'], medical_DB=medical_DB)
+                        # print(all_kinds_list2)
+                        new_all_kinds_list2 = []
                         for J in all_kinds_list2:
-                            if len(J)==0:#分类后只有一个菌，不用进行排序
+                            if len(J) == 0:  # 分类后只有一个菌，不用进行排序
                                 pass
-                            elif len(J)==1:#分类后只有一个菌，不用进行排序
+                            elif len(J) == 1:  # 分类后只有一个菌，不用进行排序
                                 new_all_kinds_list2.append(J[0])
                             else:
                                 # print(J)#有多个菌进行序列数量提取并排序
-                                Sorting_sequence_number_list2=[]
+                                Sorting_sequence_number_list2 = []
                                 for JJ in J:
-                                    Seqs2=Sorting_sequence_number(Name_ID=key, Species_ID=JJ,Interpretation=Interpretation)
+                                    Seqs2 = Sorting_sequence_number(Name_ID=key, Species_ID=JJ, Interpretation=Interpretation)
                                     # print('Seqs2',Seqs2)
                                     Sorting_sequence_number_list2.append(Seqs2)
-                                Sorting_sequence_number_list2.sort(key=lambda x:float(x[1]),reverse=True)###进行关键部分降序排列
-                                print('Sorting_sequence_number_list2',Sorting_sequence_number_list2)
-                                Sorted_list_2=[i[0] for i in Sorting_sequence_number_list2]
-                                print(dic_report[key]['补充报告'])
-                                print('Sorted_list_2',Sorted_list_2)
+                                Sorting_sequence_number_list2.sort(key=lambda x: float(x[1]), reverse=True)  ###进行关键部分降序排列
+                                # print('Sorting_sequence_number_list2',Sorting_sequence_number_list2)
+                                Sorted_list_2 = [i[0] for i in Sorting_sequence_number_list2]
+                                # print(dic_report[key]['补充报告'])
+                                # print('Sorted_list_2',Sorted_list_2)
                                 new_all_kinds_list2.extend(Sorted_list_2)
-                        print('new_all_kinds_list2',new_all_kinds_list2)
-                        new_all_kinds_list2 = list(map(lambda x: x[0].upper() + x[1:].lower(), new_all_kinds_list2))#此处调整拉丁文大写
-                        dic_report[key]['补充报告']=new_all_kinds_list2
+                        # print('new_all_kinds_list2',new_all_kinds_list2)
+                        new_all_kinds_list2 = list(map(lambda x: x[0].upper() + x[1:].lower(), new_all_kinds_list2))  # 此处调整拉丁文大写
+                        dic_report[key]['补充报告'] = new_all_kinds_list2
 
-    dic_report_true = {}#存放修改为模仿之前报告格式的报告内容#什么都没有的判断都为NA，有阴性报告标识符的，判断正式报告和补充报告为，正式报告，补充报告有或没有为NA,进行数值填充，随后供文件输出报告判断
-    for key,value in dic_report.items():
-        if len(value)==0:#不进行报告输出
+    dic_report_true = {}  # 存放修改为模仿之前报告格式的报告内容#什么都没有的判断都为NA，有阴性报告标识符的，判断正式报告和补充报告为，正式报告，补充报告有或没有为NA,进行数值填充，随后供文件输出报告判断
+    for key, value in dic_report.items():
+        if len(value) == 0:  # 不进行报告输出
             dic_report_true.setdefault(key, {})
-            dic_report_true[key]['正式报告']='NA'
-            dic_report_true[key]['补充报告']='NA'
+            dic_report_true[key]['正式报告'] = 'NA'
+            dic_report_true[key]['补充报告'] = 'NA'
         elif '阴性报告' in value.keys():
             dic_report_true.setdefault(key, {})
-            dic_report_true[key]['正式报告']=','
-            dic_report_true[key]['补充报告']='NA'
+            dic_report_true[key]['正式报告'] = ','
+            dic_report_true[key]['补充报告'] = 'NA'
         elif '正式报告' in value.keys():
-            if  '补充报告' in value.keys():
+            if '补充报告' in value.keys():
                 dic_report_true.setdefault(key, {})
-                dic_report_true[key]['正式报告']=','.join(value['正式报告'])
-                dic_report_true[key]['补充报告']=','.join(value['补充报告'])
+                dic_report_true[key]['正式报告'] = ','.join(value['正式报告'])
+                dic_report_true[key]['补充报告'] = ','.join(value['补充报告'])
             else:
                 dic_report_true.setdefault(key, {})
-                dic_report_true[key]['正式报告']=','.join(value['正式报告'])
-                dic_report_true[key]['补充报告']='NA'
+                dic_report_true[key]['正式报告'] = ','.join(value['正式报告'])
+                dic_report_true[key]['补充报告'] = 'NA'
         elif '补充报告' in value.keys():
             if '正式报告' not in value.keys():
                 dic_report_true.setdefault(key, {})
-                dic_report_true[key]['补充报告']=','.join(value['补充报告'])
-                dic_report_true[key]['正式报告']='NA'
+                dic_report_true[key]['补充报告'] = ','.join(value['补充报告'])
+                dic_report_true[key]['正式报告'] = 'NA'
     # print('dic_report_true', dic_report_true)
     return dic_report_true
 
 def Sorting_sequence_number(
-    Name_ID,
-    Species_ID,
-    Interpretation
-    ):
-    Species_ID=Species_ID.lower()
+        Name_ID,
+        Species_ID,
+        Interpretation
+):
+    Species_ID = Species_ID.lower()
     for number2 in range(Interpretation.shape[1]):
-        Title=(Interpretation.iloc[number2].axes[0])
+        Title = (Interpretation.iloc[number2].axes[0])
         for Title_range in Title:
             # print(Title_range,Name_ID,Species_ID)
-            if Title_range.replace(' ','').endswith(Name_ID):
+            if Title_range.replace(' ', '').endswith(Name_ID):
                 if '_R_' in Title_range:
                     # print(Interpretation.loc[Interpretation['name']==Species_ID,Title_range])
                     try:
-                        Reads_Number=int(Interpretation.loc[Interpretation['name']==Species_ID,Title_range].iloc[0].replace('*',''))
-                        return [Species_ID,Reads_Number]
+                        Reads_Number = int(Interpretation.loc[Interpretation['name'] == Species_ID, Title_range].iloc[0].replace('*', ''))
+                        return [Species_ID, Reads_Number]
                     except:
-                        Reads_Number=int(Interpretation.loc[Interpretation['name']==Species_ID,Title_range].iloc[0])
-                        return [Species_ID,Reads_Number]
-                    
-                    
+                        Reads_Number = int(Interpretation.loc[Interpretation['name'] == Species_ID, Title_range].iloc[0])
+                        return [Species_ID, Reads_Number]
+
+
                     # print('Title_range',Title_range)
                     # print('Name_ID',Name_ID)
                     # print('Species_ID',Species_ID)
 def Removestar(X):
-    X.replace('*','')
-    return(X)
+    X.replace('*', '')
+    return (X)
 def move_picture_barcode(doc,
-    png_name: str,
-    barcode_picture_path):
+                         png_name: str,
+                         barcode_picture_path):
     table = doc.tables[0]
-    paragraph=table.cell(0,0).paragraphs[0]
+    png_name = png_name.replace('-s', '')
+    paragraph = table.cell(1, 0).paragraphs[0]
     run = paragraph.add_run()
-    png_name=png_name.replace('-s','')
-    run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.5),height=Cm(2.5))
-    print(barcode_picture_path+png_name+'.png')
+    run.add_picture(barcode_picture_path + png_name + '.png', width=Cm(2.1), height=Cm(2.1))
+    print(barcode_picture_path + png_name + '.png')
     return doc
 ####################################################
 # 统一输入的英文名
@@ -1641,45 +1884,50 @@ Interpretation['name'] = Interpretation['name'].apply(Nor)
 complex_df['name'] = complex_df['name'].apply(Nor)
 info_client['采样时间'] = info_client['采样时间'].map(lambda x: str(x).split(' ')[0])
 # 查询模板的字典
-doc_dic = {'XY': ['Seq&Treat血液系统病原微生物检测DNA','Seq&Treat血液系统病原微生物检测DNA+RNA','Seq&Treat血液系统病原微生物检测RNA','Seq&Treat血液系统病原微生物检测'],
-            'CK': ['Seq&Treat创口系统病原微生物检测DNA','Seq&Treat创口系统病原微生物检测DNA+RNA','Seq&Treat创口系统病原微生物检测RNA','Seq&Treat创口系统病原微生物检测'],
-            'HX': ['Seq&Treat呼吸系统病原微生物检测DNA','Seq&Treat呼吸系统病原微生物检测DNA+RNA','Seq&Treat呼吸系统病原微生物检测RNA','Seq&Treat呼吸系统病原微生物检测'],
-            'MN': ['Seq&Treat泌尿生殖系统病原微生物检测DNA','Seq&Treat泌尿生殖系统病原微生物检测DNA+RNA','Seq&Treat泌尿生殖系统病原微生物检测RNA','Seq&Treat泌尿生殖系统病原微生物检测'],
-            'XH': ['Seq&Treat消化系统病原微生物检测DNA','Seq&Treat消化系统病原微生物检测DNA+RNA','Seq&Treat消化系统病原微生物检测RNA','Seq&Treat消化系统病原微生物检测'],
-            'YB': ['Seq&Treat眼科系统病原微生物检测DNA','Seq&Treat眼科系统病原微生物检测DNA+RNA','Seq&Treat眼科系统病原微生物检测RNA','Seq&Treat眼科系统病原微生物检测'],
-            'SJ': ['Seq&Treat神经系统病原微生物检测DNA','Seq&Treat神经系统病原微生物检测DNA+RNA','Seq&Treat神经系统病原微生物检测RNA','Seq&Treat神经系统病原微生物检测'],
-            'XF': ['Seq&Treat胸腹腔系统病原微生物检测DNA','Seq&Treat胸腹腔系统病原微生物检测DNA+RNA','Seq&Treat胸腹腔系统病原微生物检测RNA','Seq&Treat胸腹腔系统病原微生物检测']
-}
+doc_dic = {'XY': ['Seq&Treat血液系统病原微生物检测DNA', 'Seq&Treat血液系统病原微生物检测DNA+RNA', 'Seq&Treat血液系统病原微生物检测RNA', 'Seq&Treat血液系统病原微生物检测'],
+    'CK': ['Seq&Treat创口系统病原微生物检测DNA', 'Seq&Treat创口系统病原微生物检测DNA+RNA', 'Seq&Treat创口系统病原微生物检测RNA', 'Seq&Treat创口系统病原微生物检测'],
+    'HX': ['Seq&Treat呼吸系统病原微生物检测DNA', 'Seq&Treat呼吸系统病原微生物检测DNA+RNA', 'Seq&Treat呼吸系统病原微生物检测RNA', 'Seq&Treat呼吸系统病原微生物检测'],
+    'MN': ['Seq&Treat泌尿生殖系统病原微生物检测DNA', 'Seq&Treat泌尿生殖系统病原微生物检测DNA+RNA', 'Seq&Treat泌尿生殖系统病原微生物检测RNA', 'Seq&Treat泌尿生殖系统病原微生物检测'],
+    'XH': ['Seq&Treat消化系统病原微生物检测DNA', 'Seq&Treat消化系统病原微生物检测DNA+RNA', 'Seq&Treat消化系统病原微生物检测RNA', 'Seq&Treat消化系统病原微生物检测'],
+    'YB': ['Seq&Treat眼科系统病原微生物检测DNA', 'Seq&Treat眼科系统病原微生物检测DNA+RNA', 'Seq&Treat眼科系统病原微生物检测RNA', 'Seq&Treat眼科系统病原微生物检测'],
+    'SJ': ['Seq&Treat神经系统病原微生物检测DNA', 'Seq&Treat神经系统病原微生物检测DNA+RNA', 'Seq&Treat神经系统病原微生物检测RNA', 'Seq&Treat神经系统病原微生物检测'],
+    'XF': ['Seq&Treat胸腹腔系统病原微生物检测DNA', 'Seq&Treat胸腹腔系统病原微生物检测DNA+RNA', 'Seq&Treat胸腹腔系统病原微生物检测RNA', 'Seq&Treat胸腹腔系统病原微生物检测']}
 # 查询结果名称的字典
-report_dic = {'XY': ['Seq&Treat血液系统病原微生物检测DNA','Seq&Treat血液系统病原微生物检测DNA+RNA','Seq&Treat血液系统病原微生物检测RNA'],
-            'CK': ['Seq&Treat创口系统病原微生物检测DNA','Seq&Treat创口系统病原微生物检测DNA+RNA','Seq&Treat创口系统病原微生物检测RNA'],
-            'HX': ['Seq&Treat呼吸系统病原微生物检测DNA','Seq&Treat呼吸系统病原微生物检测DNA+RNA','Seq&Treat呼吸系统病原微生物检测RNA'],
-            'MN': ['Seq&Treat泌尿生殖系统病原微生物检测DNA','Seq&Treat泌尿生殖系统病原微生物检测DNA+RNA','Seq&Treat泌尿生殖系统病原微生物检测RNA'],
-            'XH': ['Seq&Treat消化系统病原微生物检测DNA','Seq&Treat消化系统病原微生物检测DNA+RNA','Seq&Treat消化系统病原微生物检测RNA'],
-            'YB': ['Seq&Treat眼科系统病原微生物检测DNA','Seq&Treat眼科系统病原微生物检测DNA+RNA','Seq&Treat眼科系统病原微生物检测RNA'],
-            'SJ': ['Seq&Treat神经系统病原微生物检测DNA','Seq&Treat神经系统病原微生物检测DNA+RNA','Seq&Treat神经系统病原微生物检测RNA'],
-            'XF': ['Seq&Treat胸腹腔系统病原微生物检测DNA','Seq&Treat胸腹腔系统病原微生物检测DNA+RNA','Seq&Treat胸腹腔系统病原微生物检测RNA']
+report_dic = {'XY': ['Seq&Treat血液系统病原微生物检测DNA', 'Seq&Treat血液系统病原微生物检测DNA+RNA', 'Seq&Treat血液系统病原微生物检测RNA'],
+              'CK': ['Seq&Treat创口系统病原微生物检测DNA', 'Seq&Treat创口系统病原微生物检测DNA+RNA', 'Seq&Treat创口系统病原微生物检测RNA'],
+              'HX': ['Seq&Treat呼吸系统病原微生物检测DNA', 'Seq&Treat呼吸系统病原微生物检测DNA+RNA', 'Seq&Treat呼吸系统病原微生物检测RNA'],
+              'MN': ['Seq&Treat泌尿生殖系统病原微生物检测DNA', 'Seq&Treat泌尿生殖系统病原微生物检测DNA+RNA', 'Seq&Treat泌尿生殖系统病原微生物检测RNA'],
+              'XH': ['Seq&Treat消化系统病原微生物检测DNA', 'Seq&Treat消化系统病原微生物检测DNA+RNA', 'Seq&Treat消化系统病原微生物检测RNA'],
+              'YB': ['Seq&Treat眼科系统病原微生物检测DNA', 'Seq&Treat眼科系统病原微生物检测DNA+RNA', 'Seq&Treat眼科系统病原微生物检测RNA'],
+              'SJ': ['Seq&Treat神经系统病原微生物检测DNA', 'Seq&Treat神经系统病原微生物检测DNA+RNA', 'Seq&Treat神经系统病原微生物检测RNA'],
+              'XF': ['Seq&Treat胸腹腔系统病原微生物检测DNA', 'Seq&Treat胸腹腔系统病原微生物检测DNA+RNA', 'Seq&Treat胸腹腔系统病原微生物检测RNA']
 }
 # 调用模板的字典
-doc_list = ['seegene','beagle','boruilin','beijing']
+doc_list = ['seegene', 'beagle', 'boruilin', 'beijing']
 # 生成附录的对应位置和附录表格的列宽
-expect_text_list_dict = {'beijing':['常见细菌筛查范围', '常见真菌筛查范围','常见其他病原微生物筛查范围','常见人体共生菌筛查范围'],'boruilin':['常见细菌筛查范围', '常见真菌筛查范围','常见其他病原微生物筛查范围','常见人体共生菌筛查范围'],'beagle':['常见细菌筛查范围', '常见真菌筛查范围','其他病原微生物','常见人体共生菌'],'seegene':['常见细菌筛查范围', '常见真菌筛查范围','常见其他病原微生物筛查范围','常见人体共生菌筛查范围']}
-col_width_dic_list = [{0: Cm(1.1), 1: Cm(4.4), 2: Cm(2), 3: Cm(1.4), 4: Cm(1.1), 5: Cm(4.4), 6: Cm(2), 7: Cm(1.4)}, {0: Cm(2.1), 1: Cm(3.4), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.1), 5: Cm(3.4), 6: Cm(2), 7: Cm(1.4)},{0: Cm(2.4), 1: Cm(3.25), 2: Cm(1.8), 3: Cm(1.45), 4: Cm(2.4), 5: Cm(3.25), 6: Cm(1.8), 7: Cm(1.45)},{0: Cm(1.4), 1: Cm(5.1), 2: Cm(2.4), 3: Cm(1.4), 4: Cm(5.1), 5: Cm(2.4)}]
+expect_text_list_dict = {'beijing': ['常见细菌筛查范围', '常见真菌筛查范围', '常见其他病原微生物筛查范围', '常见人体共生菌筛查范围'],
+                         'boruilin': ['常见细菌筛查范围', '常见真菌筛查范围', '常见其他病原微生物筛查范围', '常见人体共生菌筛查范围'],
+                         'beagle': ['常见细菌筛查范围', '常见真菌筛查范围', '其他病原微生物', '常见人体共生菌'],
+                         'seegene': ['常见细菌筛查范围', '常见真菌筛查范围', '常见其他病原微生物筛查范围', '常见人体共生菌筛查范围']}
+col_width_dic_list = [{0: Cm(1.1), 1: Cm(4.4), 2: Cm(2), 3: Cm(1.4), 4: Cm(1.1), 5: Cm(4.4), 6: Cm(2), 7: Cm(1.4)},
+                      {0: Cm(2.1), 1: Cm(3.4), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.1), 5: Cm(3.4), 6: Cm(2), 7: Cm(1.4)},
+                      {0: Cm(2.4), 1: Cm(3.25), 2: Cm(1.8), 3: Cm(1.45), 4: Cm(2.4), 5: Cm(3.25), 6: Cm(1.8), 7: Cm(1.45)},
+                      {0: Cm(1.4), 1: Cm(5.1), 2: Cm(2.4), 3: Cm(1.4), 4: Cm(5.1), 5: Cm(2.4)}]
 # 导入正文部分的字典生成
 dic_client = {}
-#在此处收集需要收集每个人的报告结果、
-dic_report=read_report_species(info_client=info_client, medical_DB=medical_DB)##此处需要修改标注的引物类型
-print('dic_report_true',dic_report)
-#此处需要根据由项目-名字-编号生成的ID在物种中进行搜索，标明耐药的信息
+# 在此处收集需要收集每个人的报告结果、
+dic_report = read_report_species(info_client=info_client, medical_DB=medical_DB)  ##此处需要修改标注的引物类型
+print('dic_report_true', dic_report)
+# 此处需要根据由项目-名字-编号生成的ID在物种中进行搜索，标明耐药的信息
 for row_index in range(info_client.shape[0]):
     if '通用引物' in info_client['备注'][row_index]:
         # print('ID1', info_client['患者姓名'][row_index].replace(' ','')+'_'+info_client['样本编号'][row_index].split('-')[0])
-        Name_ID=info_client['患者姓名'][row_index].replace(' ','')+'_'+info_client['样本编号'][row_index].split('-')[0]
-        formal_report=dic_report[Name_ID]['正式报告']
-        supplementary_report=dic_report[Name_ID]['补充报告']
-        print(Name_ID,formal_report)
-        print(Name_ID,supplementary_report)
-        #在此处根据row——index的姓名，编号及引物类型判定进行输出正式报告结果和补充报告结果，然后就可以套用之前的流程分析
+        Name_ID = info_client['患者姓名'][row_index].replace(' ', '') + '_' + info_client['样本编号'][row_index].split('-')[0]
+        formal_report = dic_report[Name_ID]['正式报告']
+        supplementary_report = dic_report[Name_ID]['补充报告']
+        # print(Name_ID,formal_report)
+        # print(Name_ID,supplementary_report)
+        # 在此处根据row——index的姓名，编号及引物类型判定进行输出正式报告结果和补充报告结果，然后就可以套用之前的流程分析
         if formal_report != 'NA' or supplementary_report != 'NA':
             if info_client['代理商'][row_index].lower() in doc_list:
                 manufacturer = info_client['代理商'][row_index].lower()
@@ -1690,8 +1938,8 @@ for row_index in range(info_client.shape[0]):
             dic_client.setdefault(info_client['样本编号'][row_index], {})
             dic_client[info_client['样本编号'][row_index]]['样本编号'] = info_client['样本编号'][row_index].split('-')[0]
             dic_client[info_client['样本编号'][row_index]]['代理商'] = manufacturer
-            dic_client[info_client['样本编号'][row_index]]['姓名'] = info_client['患者姓名'][row_index].replace(' ','')
-            print(dic_client[info_client['样本编号'][row_index]]['姓名'])
+            dic_client[info_client['样本编号'][row_index]]['姓名'] = info_client['患者姓名'][row_index].replace(' ', '')
+            # print(dic_client[info_client['样本编号'][row_index]]['姓名'])
             logging.info(f"开始处理{info_client['样本编号'][row_index]} {info_client['患者姓名'][row_index]}的信息")
             dic_client[info_client['样本编号'][row_index]]['性别'] = info_client['性别'][row_index]
             try:
@@ -1723,25 +1971,25 @@ for row_index in range(info_client.shape[0]):
             dic_client[info_client['样本编号'][row_index]]['补充微生物'] = supplementary_report
             receivedate = str(info_client['收样时间'][row_index]).strip()
             if receivedate != 'NA':
-                dic_client[info_client['样本编号'][row_index]]['收样日期'] = receivedate.split('/')[0]+'年'+receivedate.split('/')[1]+'月'+receivedate.split('/')[2]+'日'
+                dic_client[info_client['样本编号'][row_index]]['收样日期'] = receivedate.split('/')[0] + '年' + receivedate.split('/')[1] + '月' + receivedate.split('/')[2] + '日'
             else:
                 dic_client[info_client['样本编号'][row_index]]['收样日期'] = 'NA'
             collectiondate = str(info_client['采样时间'][row_index]).strip()
             if collectiondate != 'NA':
                 try:
-                    dic_client[info_client['样本编号'][row_index]]['采样日期'] = collectiondate.split('/')[0]+'年'+collectiondate.split('/')[1]+'月'+collectiondate.split('/')[2]+'日'
+                    dic_client[info_client['样本编号'][row_index]]['采样日期'] = collectiondate.split('/')[0] + '年' + collectiondate.split('/')[1] + '月' + collectiondate.split('/')[2] + '日'
                 except IndexError:
-                    dic_client[info_client['样本编号'][row_index]]['采样日期'] = collectiondate.split('-')[0]+'年'+collectiondate.split('-')[1]+'月'+collectiondate.split('-')[2]+'日'
+                    dic_client[info_client['样本编号'][row_index]]['采样日期'] = collectiondate.split('-')[0] + '年' + collectiondate.split('-')[1] + '月' + collectiondate.split('-')[2] + '日'
             else:
                 dic_client[info_client['样本编号'][row_index]]['采样日期'] = 'NA'
             try:
                 exdate = str(info_client['上机日期'][row_index]).split(' ')[0]
-                dic_client[info_client['样本编号'][row_index]]['实验日期'] = exdate.split('-')[0]+'年'+exdate.split('-')[1]+'月'+exdate.split('-')[2]+'日'
+                dic_client[info_client['样本编号'][row_index]]['实验日期'] = exdate.split('-')[0] + '年' + exdate.split('-')[1] + '月' + exdate.split('-')[2] + '日'
             except IndexError:
                 exdate = str(info_client['上机日期'][row_index])
-                dic_client[info_client['样本编号'][row_index]]['实验日期'] = exdate.split('/')[0]+'年'+exdate.split('/')[1]+'月'+exdate.split('/')[2]+'日'
+                dic_client[info_client['样本编号'][row_index]]['实验日期'] = exdate.split('/')[0] + '年' + exdate.split('/')[1] + '月' + exdate.split('/')[2] + '日'
             reportdate = str(info_client['报告日期'][row_index]).split(' ')[0]
-            dic_client[info_client['样本编号'][row_index]]['报告日期'] = reportdate.split('/')[0]+'年'+reportdate.split('/')[1]+'月'+reportdate.split('/')[2]+'日'
+            dic_client[info_client['样本编号'][row_index]]['报告日期'] = reportdate.split('/')[0] + '年' + reportdate.split('/')[1] + '月' + reportdate.split('/')[2] + '日'
             colname = info_client['barcode'][row_index] + '_' + info_client['患者姓名'][row_index] + '_' + info_client['样本编号'][row_index]
             dic_client[info_client['样本编号'][row_index]]['平均长度'] = picture_dtat_df.at[8, colname.replace(' ', '')]
             if manufacturer == 'seegene' or 'boruilin' or 'beijing':
@@ -1759,61 +2007,202 @@ for row_index in range(info_client.shape[0]):
                     dic_client[info_client['样本编号'][row_index]]['表8信息'] = table7_make(sample_code=info_client['样本编号'][row_index], info_client=info_client, drug_resistance_df=drug_resistance_df)
                 else:
                     dic_client[info_client['样本编号'][row_index]]['表8信息'] = [{'基因': '--', '药物': '--'}]
-                dic_client[info_client['样本编号'][row_index]]['example'] = clinical(sample_code=info_client['样本编号'][row_index],info_client=info_client,medical_DB=medical_DB,manufacturer=manufacturer, formal_report=formal_report, supplementary_report=supplementary_report)
-                length_colname = str(info_client['barcode'][row_index]) + '_'  + dic_client[info_client['样本编号'][row_index]]['姓名'] + '_' + str(info_client['样本编号'][row_index])
+                # dic_client[info_client['样本编号'][row_index]]['example'] = clinical(sample_code=info_client['样本编号'][row_index], info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer, formal_report=formal_report, supplementary_report=supplementary_report)
+                length_colname = str(info_client['barcode'][row_index]) + '_' + dic_client[info_client['样本编号'][row_index]]['姓名'] + '_' + str(info_client['样本编号'][row_index])
                 dic_client[info_client['样本编号'][row_index]]['图片文件名'] = length_colname + '.png'
-                make_picture(length_colname=length_colname,picture_dtat_df=picture_dtat_df)
-                if formal_report != ',' and formal_report != '，' and formal_report != 'NA':
-                    dic_client[info_client['样本编号'][row_index]]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
-                else:
-                    dic_client[info_client['样本编号'][row_index]]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
-                if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
-                    dic_client[info_client['样本编号'][row_index]]['说明'] = '疑似微生物种解释说明'
+                make_picture(length_colname=length_colname, picture_dtat_df=picture_dtat_df)
+                # if formal_report != ',' and formal_report != '，' and formal_report != 'NA':
+                #     dic_client[info_client['样本编号'][row_index]]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+                # else:
+                #     dic_client[info_client['样本编号'][row_index]]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+                # if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
+                #     dic_client[info_client['样本编号'][row_index]]['说明'] = '疑似微生物种解释说明'
             elif manufacturer == 'beagle':
                 table_info = table_context(sample_code=info_client['样本编号'][row_index], info_client=info_client, Interpretation=Interpretation, medical_DB=medical_DB, formal_report=formal_report, supplementary_report=supplementary_report)
                 dic_client[info_client['样本编号'][row_index]]['表1信息'] = table_info[0]
                 dic_client[info_client['样本编号'][row_index]]['表2信息'] = table_info[1]
                 # if info_client.loc[info_client['样本编号'] == info_client['样本编号'][row_index], '正式报告结果'].iloc[0] != 'NA':
                 if formal_report != 'NA':
-                    dic_client[info_client['样本编号'][row_index]]['example'] = dic_client[info_client['样本编号'][row_index]]['example'] = clinical(sample_code=info_client['样本编号'][row_index],info_client=info_client,medical_DB=medical_DB,manufacturer=manufacturer)
+                    dic_client[info_client['样本编号'][row_index]]['example'] = dic_client[info_client['样本编号'][row_index]]['example'] = clinical(sample_code=info_client['样本编号'][row_index], info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer)
                     dic_client[info_client['样本编号'][row_index]]['reference'] = reference(info_client['样本编号'][row_index], formal_report=formal_report, supplementary_report=supplementary_report)
-    # for key,value in dic_client.items():
-#     print(key,value)
+# for key, value in dic_client.items():
+#     print(key, value)
 logging.info("所有信息处理完成！")
 # # 输出文件夹的创建
-filename_date = reportdate.split('/')[0]+reportdate.split('/')[1]+reportdate.split('/')[2]
+filename_date = reportdate.split('/')[0] + reportdate.split('/')[1] + reportdate.split('/')[2]
 # # if __name__=='__main__':
-# #     p = Pool(args.processes_number)     
+# #     p = Pool(args.processes_number)
 # #     for sample_code in dic_client.keys():
 # #         p.apply_async(make_word_report, args=(sample_code,dic_client,report_dic,doc_dic,medical_DB))
 # #     p.close()
 # #     p.join()
 # # logging.info(f"所有报告生成成功！")
-for sample_code,value in dic_client.items():
+# for sample_code,value in dic_client.items():
+#     # print(value)
+#     formal_report = dic_client[sample_code]['检测微生物']
+#     supplementary_report = dic_client[sample_code]['补充微生物']
+#     dic_client[sample_code] = copy.deepcopy(dic_client[sample_code])
+#     dic_client[sample_code]['example'] = clinical(sample_code=sample_code, info_client=info_client,
+#                                                       medical_DB=medical_DB, manufacturer=manufacturer,
+#                                                       formal_report=formal_report,
+#                                                       supplementary_report=supplementary_report)
+#     if formal_report != ',' and formal_report != '，' and formal_report != 'NA':
+#         dic_client[sample_code]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+#     else:
+#         dic_client[sample_code]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+#     if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
+#         dic_client[sample_code]['说明'] = '疑似微生物种解释说明'
+#     make_word_report(sample_code=sample_code,dic_client=dic_client,report_dic=report_dic,doc_dic=doc_dic,medical_DB=medical_DB)
+#     os.remove(dic_client[sample_code]['图片文件名'])
+
+for sample_code, value in dic_client.items():
     # print(value)
-    make_word_report(sample_code=sample_code,dic_client=dic_client,report_dic=report_dic,doc_dic=doc_dic,medical_DB=medical_DB)
+    # suffix = dic_client[sample_code]['检测项目'].split('测')[-1]
+    project_shortname = project_shorthand(sample_code)
+    # if 'DNA' and 'RNA' in suffix:
+    if dic_client[sample_code]['核酸类型'] == 'DNA+RNA':
+        dic_client_dna, dic_client_rna = {}, {}
+        dic_client_dna[sample_code] = copy.deepcopy(dic_client[sample_code])
+        formal_report_dna = dic_client[sample_code]['检测微生物']
+        supplementary_report_dna = dic_client[sample_code]['补充微生物']
+
+        rna_list = dic_client[sample_code]['表5信息']
+        formal_report_rna = []
+        for rna_info in rna_list:
+            if rna_info['分类'] == 'RNA病毒' and rna_info['微生物'] != '--':
+                formal_report_rna.append(rna_info['微生物'])
+                formal_report_dna.replace(rna_info['微生物'], '')
+                formal_report_dna.replace(',,', ',')
+        if formal_report_rna:
+            formal_report_rna = ','.join(formal_report_rna)
+        else:
+            formal_report_rna = ','
+
+        dic_client_dna[sample_code]['检测微生物'] = formal_report_dna
+        dic_client_dna[sample_code]['补充微生物'] = supplementary_report_dna
+        dic_client_dna[sample_code]['核酸类型'] = 'DNA'
+        dic_client_dna[sample_code]['example'] = clinical(sample_code=sample_code, info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer, formal_report=formal_report_dna, supplementary_report=supplementary_report_dna)
+        if formal_report_dna != ',' and formal_report_dna != '，' and formal_report_dna != 'NA':
+            dic_client_dna[sample_code]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+        else:
+            dic_client_dna[sample_code]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+        if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
+            dic_client_dna[sample_code]['说明'] = '疑似微生物种解释说明'
+
+        dic_client_rna[sample_code] = copy.deepcopy(dic_client[sample_code])
+        dic_client_rna[sample_code]['检测微生物'] = formal_report_rna
+        dic_client_rna[sample_code]['补充微生物'] = ','
+        supplementary_report_rna = ','
+        dic_client_rna[sample_code]['核酸类型'] = 'RNA'
+        dic_client_rna[sample_code]['表9信息'] = [{'中文名': '--', '分类': '--', '分类顺序': 1, '相对丰度': '--', '序列数': '--', '微生物': '--', '备注': '--'}]
+        dic_client_rna[sample_code]['example'] = clinical(sample_code=sample_code, info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer, formal_report=formal_report_rna, supplementary_report=supplementary_report_rna)
+        if formal_report_rna != ',' and formal_report_rna != '，' and formal_report_rna != 'NA':
+            dic_client_rna[sample_code]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+        else:
+            dic_client_rna[sample_code]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+        if supplementary_report_rna != ',' and supplementary_report_rna != '，' and supplementary_report_rna != 'NA':
+            dic_client_rna[sample_code]['说明'] = '疑似微生物种解释说明'
+
+        if dic_client[sample_code]['代理商'] == 'seegene':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beagle':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][-1] + '.docx'
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][-1] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'boruilin':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beijing':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        make_word_report_dna(sample_code=sample_code, dic_client_dna=dic_client_dna, report_dic=report_dic, doc_dic=doc_dic, medical_DB=medical_DB, df_name=df_name_dna, open_name=open_name_dna)
+        make_word_report_rna(sample_code=sample_code, dic_client_rna=dic_client_rna, report_dic=report_dic, doc_dic=doc_dic, medical_DB=medical_DB, df_name=df_name_rna, open_name=open_name_rna)
+        os.remove(dic_client[sample_code]['图片文件名'])
+    # elif 'RNA' in suffix:
+    elif dic_client[sample_code]['核酸类型'] == 'RNA':
+        dic_client_rna = {}
+        formal_report_rna = dic_client[sample_code]['检测微生物']
+        supplementary_report = dic_client[sample_code]['补充微生物']
+        dic_client_rna[sample_code] = copy.deepcopy(dic_client[sample_code])
+        dic_client_rna[sample_code]['example'] = clinical(sample_code=sample_code, info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer, formal_report=formal_report_rna, supplementary_report='NA')
+        if formal_report_rna != ',' and formal_report_rna != '，' and formal_report_rna != 'NA':
+            dic_client_rna[sample_code]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+        else:
+            dic_client_rna[sample_code]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+        if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
+            dic_client_rna[sample_code]['说明'] = '疑似微生物种解释说明'
+
+        if dic_client[sample_code]['代理商'] == 'seegene':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beagle':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][-1] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'boruilin':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beijing':
+            df_name_rna = report_dic[project_shortname][2] + '.xlsx'
+            open_name_rna = doc_dic[project_shortname][2] + '.docx'
+        make_word_report_rna(sample_code=sample_code, dic_client_rna=dic_client_rna, report_dic=report_dic, doc_dic=doc_dic, medical_DB=medical_DB, df_name=df_name_rna, open_name=open_name_rna)
+        os.remove(dic_client[sample_code]['图片文件名'])
+    else:
+        dic_client_dna = {}
+        formal_report_dna = dic_client[sample_code]['检测微生物']
+        supplementary_report = dic_client[sample_code]['补充微生物']
+        dic_client_dna[sample_code] = copy.deepcopy(dic_client[sample_code])
+        dic_client_dna[sample_code]['example'] = clinical(sample_code=sample_code, info_client=info_client, medical_DB=medical_DB, manufacturer=manufacturer, formal_report=formal_report_dna, supplementary_report=supplementary_report)
+        if formal_report_dna != ',' and formal_report_dna != '，' and formal_report_dna != 'NA':
+            dic_client_dna[sample_code]['注释'] = '注：常用药物为临床常规药物，且无法覆盖药敏结果，具体用药请结合临床药敏结果或医院耐药监测数据酌情用药。'
+        else:
+            dic_client_dna[sample_code]['注释'] = '本次样本中未检出疑似致病菌，结果仅对本次送检的样本负责，请临床根据患者症状结合其他检测结果进行综合判断。'
+        if supplementary_report != ',' and supplementary_report != '，' and supplementary_report != 'NA':
+            dic_client_dna[sample_code]['说明'] = '疑似微生物种解释说明'
+        if dic_client[sample_code]['代理商'] == 'seegene':
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beagle':
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][-1] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'boruilin':
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        elif dic_client[sample_code]['代理商'] == 'beijing':
+            df_name_dna = report_dic[project_shortname][0] + '.xlsx'
+            open_name_dna = doc_dic[project_shortname][0] + '.docx'
+        make_word_report_dna(sample_code=sample_code, dic_client_dna=dic_client_dna, report_dic=report_dic, doc_dic=doc_dic, medical_DB=medical_DB, df_name=df_name_dna, open_name=open_name_dna)
+        os.remove(dic_client[sample_code]['图片文件名'])
+
 logging.info(f"开始汇总结果！")
-for sample_code,value in dic_client.items():
+for sample_code, value in dic_client.items():
     # print('sample_code',sample_code)
     # print(value['姓名'],value['样本编号'].split('-')[0])
-    Name_ID=value['姓名']+'_'+value['样本编号'].split('-')[0]
-    formal_report=dic_report[Name_ID]['正式报告']
-    supplementary_report=dic_report[Name_ID]['补充报告']
+    Name_ID = value['姓名'] + '_' + value['样本编号'].split('-')[0]
+    formal_report = dic_report[Name_ID]['正式报告']
+    supplementary_report = dic_report[Name_ID]['补充报告']
     manufacturer = dic_client[sample_code]['代理商']
-    summary_excel_path = os.path.join(args.summary_excel,manufacturer,'汇总.xlsx')
+    summary_excel_path = os.path.join(args.summary_excel, manufacturer, '汇总.xlsx')
     all_summary_df = pd.read_excel(summary_excel_path)
     all_info_list = []
     if all_summary_df.shape[0] != 0:
         for row_index in range(all_summary_df.shape[0]):
             line_info = str(all_summary_df['样本编号'][row_index]) + '_' + str(all_summary_df['患者姓名'][row_index]) + '_' + str(all_summary_df['basecalling data'][row_index]) + '_' + str(all_summary_df['Reports'][row_index])
             all_info_list.append(line_info)
-    all_info_dict = dict(zip(all_info_list,all_info_list))
-    data_summary_excel_path = os.path.join(args.summary_excel,manufacturer,filename_date,'汇总.xlsx')
+    all_info_dict = dict(zip(all_info_list, all_info_list))
+    data_summary_excel_path = os.path.join(args.summary_excel, manufacturer, filename_date, '汇总.xlsx')
     if data_summary_excel_path and os.path.exists(data_summary_excel_path):
         data_summary_df = pd.read_excel(data_summary_excel_path)
     else:
         data_summary_df = pd.DataFrame(columns=all_summary_df.columns.tolist())
-    
+
     need_info = info_client.query('样本编号 == @sample_code').iloc[0]
     all_list = []
     try:
@@ -1834,11 +2223,11 @@ for sample_code,value in dic_client.items():
             for row_index in range(data_summary_df.shape[0]):
                 line_info = str(data_summary_df['样本编号'][row_index]) + '_' + str(data_summary_df['患者姓名'][row_index]) + '_' + str(data_summary_df['basecalling data'][row_index]) + '_' + data_summary_df['Reports'][row_index]
                 data_info_list.append(line_info)
-        data_info_dict = dict(zip(data_info_list,data_info_list))
+        data_info_dict = dict(zip(data_info_list, data_info_list))
         if len(micro) != 0 and micro != 'NA':
             info_list = all_summary_df.columns.tolist()[:-10]
             new_line_dict = {}
-            for colname in info_list:   
+            for colname in info_list:
                 new_line_dict[colname] = need_info[colname]
             new_line_dict['Reports'] = micro
             try:
@@ -1854,7 +2243,7 @@ for sample_code,value in dic_client.items():
             else:
                 new_line_dict['报告等级'] = 'B'
             try:
-                new_line_dict['致病性描述'] = medical_DB.loc[(medical_DB['英文名称']== compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
+                new_line_dict['致病性描述'] = medical_DB.loc[(medical_DB['英文名称'] == compare_bac_name) & (medical_DB.检测项目.str.contains(project_shorthand(sample_code), regex=True)), '备注'].iloc[0]
             except IndexError:
                 new_line_dict['致病性描述'] = 'NA'
             column_R = info_client.loc[info_client['样本编号'] == sample_code, 'barcode'].iloc[0] + '_R_' + project_shorthand(sample_code) + '_' + str(info_client.loc[info_client['样本编号'] == sample_code, '患者姓名'].iloc[0]) + '_' + sample_code

@@ -437,9 +437,9 @@ def move_picture_barcode(doc,
     barcode_picture_path):
     table = doc.tables[0]
     png_name=png_name.replace('-s','')
-    paragraph=table.cell(0,0).paragraphs[0]
+    paragraph=table.cell(1,0).paragraphs[0]
     run = paragraph.add_run()
-    run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.5),height=Cm(2.5))
+    run.add_picture(barcode_picture_path+png_name+'.png',width=Cm(2.1),height=Cm(2.1))
     print(barcode_picture_path+png_name+'.png')
     return doc
 
@@ -1315,8 +1315,11 @@ def make_word_report(sample_code: str,
             use_col_width_dic_list = [{0: Cm(2.0), 1: Cm(3.5), 2: Cm(2), 3: Cm(1.4), 4: Cm(2.0), 5: Cm(3.5), 6: Cm(2), 7: Cm(1.4)}]
     for index,df in enumerate(appendix_list):
         # print(index,df)
-        while (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0])/2),1][0].isspace():
-            df.loc[df.shape[0]]=['--'] * df.shape[1]
+        if (df.shape[0]) % 2 != 0 or df.iloc[int((df.shape[0])/2),1][0].isspace():
+            try:
+                df.loc[df.shape[0]]=['--'] * df.shape[1]
+            except:
+                pass
         row_num = int((df.shape[0])/2) + 1
         col_num = 8
         if index == 3:
@@ -1367,7 +1370,7 @@ def make_word_report(sample_code: str,
         parse_table_add(sample_code=sample_code,dic_client=dic_client,doc=doc,medical_DB=medical_DB,Interpretation_list=Interpretation_list)
     try:
         doc = move_picture_barcode(doc=doc, png_name=sample_code,barcode_picture_path=barcode_picture_path)
-    except IndexError:
+    except:
         logging.info(f"{handle_df['患者姓名']}的结果条形码图片未找到，请核对是否放入数据库中")
         pass
     doc.save(result_file)
