@@ -3,6 +3,7 @@
 #conda install -c conda-forge premailer
 # sudo vim /etc/sysctl.conf
 #fs.inotify.max_user_watches=99999999
+echo "password" | sudo -S sysctl fs.inotify.max_user_watches=99999999
 import time,subprocess,os,logging
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
